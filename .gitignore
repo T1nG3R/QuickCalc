@@ -33,3 +33,8 @@ local.properties
 build.log
 build_output.txt
 /app/release/
+
+# signing keystores & secrets
+*.jks
+*.keystore
+keystore.properties
