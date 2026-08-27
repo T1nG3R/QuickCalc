@@ -1,6 +1,7 @@
 package com.alecdev.quickcalc
 
-import CalculatorState
+import com.alecdev.quickcalc.presentation.CalculatorEngine
+import com.alecdev.quickcalc.presentation.CalculatorState
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -108,6 +109,111 @@ class CalculatorStateTest {
         state.onCalculate()
         assertEquals("8", state.display)
         assertEquals(1, state.history.size)
-        assertEquals("5+3|8", state.history[0])
+        assertEquals("5+3", state.history[0].expression)
+        assertEquals("8", state.history[0].result)
+    }
+
+    @Test
+    fun testScientificSquareRoot() {
+        val state = CalculatorState()
+        state.onInput("√(")
+        state.onInput("9")
+        state.onInput(")")
+        assertEquals("√(9)", state.display)
+        state.onCalculate()
+        assertEquals("3", state.display)
+    }
+
+    @Test
+    fun testScientificPiAndPower() {
+        val state = CalculatorState()
+        state.onInput("π")
+        state.onOperation("×")
+        state.onInput("2")
+        state.onCalculate()
+        val piDouble = state.display.toDouble()
+        assertTrue(piDouble > 6.28 && piDouble < 6.29)
+    }
+
+    @Test
+    fun testScientificParenthesesAndExponent() {
+        val state = CalculatorState()
+        state.onInput("(")
+        state.onInput("2")
+        state.onOperation("+")
+        state.onInput("3")
+        state.onInput(")")
+        state.onInput("^2")
+        state.onCalculate()
+        assertEquals("25", state.display)
+    }
+
+    @Test
+    fun testCalculatorEngineDirectEvaluation() {
+        assertEquals("10", CalculatorEngine.evaluate("5×2"))
+        assertEquals("2.5", CalculatorEngine.evaluate("5÷2"))
+        assertEquals("4", CalculatorEngine.evaluate("2^2"))
+        assertEquals("8", CalculatorEngine.evaluate("2^3"))
+        assertEquals("0.5", CalculatorEngine.evaluate("1/2"))
+        assertEquals("4", CalculatorEngine.evaluate("√(16)"))
+    }
+
+    @Test
+    fun testSetHistory() {
+        val state = CalculatorState()
+        val loadedItems = listOf(
+            com.alecdev.quickcalc.presentation.HistoryItem("10+5", "15"),
+            com.alecdev.quickcalc.presentation.HistoryItem("20×2", "40")
+        )
+        state.setHistory(loadedItems)
+        assertEquals(2, state.history.size)
+        assertEquals("10+5", state.history[0].expression)
+        assertEquals("15", state.history[0].result)
+    }
+
+    @Test
+    fun testImplicitMultiplication() {
+        assertEquals("6", CalculatorEngine.evaluate("2(3)"))
+        assertEquals("6", CalculatorEngine.evaluate("(2)(3)"))
+        assertEquals("6", CalculatorEngine.evaluate("2√(9)"))
+        val piDouble = CalculatorEngine.evaluate("2π").toDouble()
+        assertTrue(piDouble > 6.28 && piDouble < 6.29)
+        val piParenDouble = CalculatorEngine.evaluate("π(2)").toDouble()
+        assertTrue(piParenDouble > 6.28 && piParenDouble < 6.29)
+    }
+
+    @Test
+    fun testAutoCloseParentheses() {
+        assertEquals("3", CalculatorEngine.evaluate("√(9"))
+        assertEquals("5", CalculatorEngine.evaluate("(2+3"))
+    }
+
+    @Test
+    fun testReciprocalWrapping() {
+        val state = CalculatorState()
+        state.onInput("5")
+        state.onReciprocal()
+        assertEquals("1/(5)", state.display)
+        state.onCalculate()
+        assertEquals("0.2", state.display)
+
+        state.onClear()
+        state.onReciprocal()
+        assertEquals("1/", state.display)
+        state.onReciprocal()
+        assertEquals("", state.display)
+    }
+
+    @Test
+    fun testScientificDecimalSupport() {
+        val state = CalculatorState()
+        state.onInput("2")
+        state.onInput(".")
+        state.onInput("5")
+        state.onInput("^")
+        state.onInput("3")
+        state.onInput(".")
+        state.onInput("5")
+        assertEquals("2.5^3.5", state.display)
     }
 }

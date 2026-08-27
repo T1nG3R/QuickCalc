@@ -1,23 +1,32 @@
+package com.alecdev.quickcalc.presentation
+
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import java.text.DecimalFormat
+
+data class HistoryItem(
+    val expression: String,
+    val result: String
+)
 
 class CalculatorState {
     private var expression by mutableStateOf("")
     var display by mutableStateOf("")
-    val history = mutableStateListOf<String>()
+    val history = mutableStateListOf<HistoryItem>()
 
     fun updateExpression(expr: String) {
         expression = expr
         updateDisplay()
     }
 
-    private val df = DecimalFormat("#.########")
+    fun setHistory(items: List<HistoryItem>) {
+        history.clear()
+        history.addAll(items)
+    }
 
     fun onInput(input: String) {
-        if (input == "." && (expression.lastOrNull()?.isDigit() != true || lastNumberContainsDecimal())) {
+        if (input == "." && (expression.lastOrNull()?.isDigit() != true || CalculatorEngine.lastNumberContainsDecimal(expression))) {
             return
         }
 
@@ -34,13 +43,13 @@ class CalculatorState {
             return
         }
 
-        if (sanitizedOp == "-" && isLastCharOperation() && expression.last() != '-') {
+        if (sanitizedOp == "-" && CalculatorEngine.isLastCharOperation(expression) && expression.last() != '-') {
             expression += sanitizedOp
             updateDisplay()
             return
         }
 
-        if (expression.isNotEmpty() && !isLastCharOperation()) {
+        if (expression.isNotEmpty() && !CalculatorEngine.isLastCharOperation(expression)) {
             expression += sanitizedOp
             updateDisplay()
         }
@@ -48,10 +57,9 @@ class CalculatorState {
 
     fun onCalculate() {
         try {
-            val result = evaluate(expression)
-            val output = df.format(result)
-            if (expression.isNotEmpty() && expression != output) {
-                history.add("$expression|$output")
+            val output = CalculatorEngine.evaluate(expression)
+            if (expression.isNotEmpty() && expression != output && output.isNotEmpty()) {
+                history.add(HistoryItem(expression = expression, result = output))
             }
             display = output
             expression = display
@@ -72,29 +80,18 @@ class CalculatorState {
         }
     }
 
+    fun onReciprocal() {
+        if (expression.isEmpty()) {
+            expression = "1/"
+        } else if (expression == "1/") {
+            expression = ""
+        } else {
+            expression = "1/($expression)"
+        }
+        updateDisplay()
+    }
+
     private fun updateDisplay() {
         display = expression
     }
-
-    private fun isLastCharOperation(): Boolean {
-        return expression.isNotEmpty() && expression.last() in listOf('+', '−', '×', '÷')
-    }
-
-    private fun lastNumberContainsDecimal(): Boolean {
-        val lastNumber = expression.split(Regex("[-+×÷]")).last()
-        return "." in lastNumber
-    }
-
-    private fun evaluate(expression: String): Double {
-        val sanitizedExpression = expression.replace('÷', '/').replace('×', '*')
-        return try {
-            val result = net.objecthunter.exp4j.ExpressionBuilder(sanitizedExpression).build().evaluate()
-            if (result.isInfinite() || result.isNaN()) {
-                throw ArithmeticException("Invalid calculation")
-            }
-            result
-        } catch (e: Exception) {
-            throw ArithmeticException("Invalid expression")
-        }
-    }
-}
+}

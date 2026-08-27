@@ -1,18 +1,12 @@
 package com.alecdev.quickcalc.presentation
 
-import CalculatorState
 import android.os.Build
 import android.os.Bundle
 import kotlinx.coroutines.launch
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.horizontalScroll
@@ -42,7 +36,6 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.rotary.onRotaryScrollEvent
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Devices
 import androidx.compose.ui.tooling.preview.Preview
@@ -64,23 +57,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        handleIntent(intent)
         setContent {
-            val currentDisplay = calculatorState.display
-            val context = LocalContext.current
-            LaunchedEffect(currentDisplay) {
-                val tilePrefs = context.getSharedPreferences("tile_prefs", android.content.Context.MODE_PRIVATE)
-                val savedExpr = tilePrefs.getString("expression", "") ?: ""
-                if (currentDisplay != savedExpr) {
-                    tilePrefs.edit().putString("expression", currentDisplay).apply()
-                    try {
-                        androidx.wear.tiles.TileService.getUpdater(context)
-                            .requestUpdate(com.alecdev.quickcalc.tile.MainTileService::class.java)
-                    } catch (e: Exception) {
-                        // ignore update failures
-                    }
-                }
-            }
             CalculatorApp(calculatorState)
         }
     }
@@ -90,29 +67,31 @@ class MainActivity : ComponentActivity() {
         val tilePrefs = getSharedPreferences("tile_prefs", android.content.Context.MODE_PRIVATE)
         val initialExpr = tilePrefs.getString("expression", "") ?: ""
         calculatorState.updateExpression(initialExpr)
+        calculatorState.setHistory(HistoryRepository.loadHistory(this))
     }
 
-    override fun onNewIntent(intent: android.content.Intent) {
-        super.onNewIntent(intent)
-        handleIntent(intent)
-    }
-
-    private fun handleIntent(intent: android.content.Intent?) {
-        val initialInput = intent?.getStringExtra("input")
-        if (!initialInput.isNullOrEmpty()) {
-            when (initialInput) {
-                "C" -> calculatorState.onClear()
-                "⌫" -> calculatorState.onDelete()
-                "＝" -> calculatorState.onCalculate()
-                "+", "−", "×", "÷" -> calculatorState.onOperation(initialInput)
-                else -> calculatorState.onInput(initialInput)
+    override fun onPause() {
+        super.onPause()
+        val tilePrefs = getSharedPreferences("tile_prefs", android.content.Context.MODE_PRIVATE)
+        val currentDisplay = calculatorState.display
+        val savedExpr = tilePrefs.getString("expression", "") ?: ""
+        if (currentDisplay != savedExpr) {
+            tilePrefs.edit().putString("expression", currentDisplay).apply()
+            try {
+                androidx.wear.tiles.TileService.getUpdater(this)
+                    .requestUpdate(com.alecdev.quickcalc.tile.MainTileService::class.java)
+            } catch (e: Exception) {
+                // ignore update failures
             }
         }
+
+        HistoryRepository.saveHistory(this, calculatorState.history)
     }
 }
 
 @Composable
 fun CalculatorApp(calculatorState: CalculatorState = remember { CalculatorState() }) {
+    val context = LocalContext.current
     val scrollState = rememberScrollState()
     var keysVisible by remember { mutableStateOf(true) }
     val pagerState = rememberPagerState(pageCount = { 2 })
@@ -218,9 +197,6 @@ fun CalculatorApp(calculatorState: CalculatorState = remember { CalculatorState(
                             autoCentering = null
                         ) {
                             items(calculatorState.history.reversed()) { item ->
-                                val parts = item.split("|")
-                                val expr = parts.getOrNull(0) ?: ""
-                                val res = parts.getOrNull(1) ?: ""
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
@@ -229,7 +205,7 @@ fun CalculatorApp(calculatorState: CalculatorState = remember { CalculatorState(
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Text(
-                                        text = expr,
+                                        text = item.expression,
                                         style = TextStyle(
                                             fontFamily = RoundedFontFamily,
                                             fontSize = 14.sp,
@@ -239,7 +215,7 @@ fun CalculatorApp(calculatorState: CalculatorState = remember { CalculatorState(
                                     )
                                     Spacer(modifier = Modifier.width(8.dp))
                                     Text(
-                                        text = res,
+                                        text = item.result,
                                         style = TextStyle(
                                             fontFamily = RoundedFontFamily,
                                             fontSize = 16.sp,
@@ -254,6 +230,7 @@ fun CalculatorApp(calculatorState: CalculatorState = remember { CalculatorState(
                                     Button(
                                         onClick = {
                                             calculatorState.history.clear()
+                                            HistoryRepository.clearHistory(context)
                                         },
                                         modifier = Modifier
                                             .padding(top = 8.dp)
@@ -287,7 +264,7 @@ fun CalculatorApp(calculatorState: CalculatorState = remember { CalculatorState(
                         "⌫" -> calculatorState.onDelete()
                         "＝" -> calculatorState.onCalculate()
                         "+", "−", "×", "÷" -> calculatorState.onOperation(input)
-                        "1/x" -> calculatorState.onInput("1/")
+                        "1/x" -> calculatorState.onReciprocal()
                         "√" -> calculatorState.onInput("√(")
                         "^" -> calculatorState.onInput("^")
                         "x²" -> calculatorState.onInput("^2")
@@ -488,37 +465,41 @@ fun ButtonRow(
             .height(0.dp)
     ) {
         for (button in buttons) {
-            val backgroundColor = when (button) {
-                in listOf("+", "−", "×", "÷") -> colorScheme.secondaryContainer
-                "C" -> colorScheme.tertiaryContainer
-                "＝", "⌫" -> colorScheme.primaryContainer
-                "←" -> colorScheme.darkAccent
-                else -> colorScheme.surfaceVariant
-            }
-
-            val btnTextColor = when (button) {
-                in listOf("+", "−", "×", "÷") -> colorScheme.onSecondaryContainer
-                "C" -> colorScheme.onTertiaryContainer
-                "＝", "⌫" -> colorScheme.onPrimaryContainer
-                "←" -> colorScheme.onDarkAccent
-                else -> colorScheme.onSurface
-            }
-
-            val alpha = if (button.isEmpty()) 0f else 1f
-
-            Button(
-                onClick = { if (alpha > 0) onButtonClick(button) },
-                modifier = Modifier
-                    .padding(0.5.dp)
-                    .aspectRatio(1.2f)
-                    .weight(1f)
-                    .alpha(alpha),
-                colors = ButtonDefaults.buttonColors(
-                    backgroundColor = backgroundColor.copy(alpha = alpha),
-                    contentColor = btnTextColor
+            if (button.isEmpty()) {
+                Spacer(
+                    modifier = Modifier
+                        .padding(0.5.dp)
+                        .aspectRatio(1.2f)
+                        .weight(1f)
                 )
-            ) {
-                if (alpha > 0) {
+            } else {
+                val backgroundColor = when (button) {
+                    in listOf("+", "−", "×", "÷") -> colorScheme.secondaryContainer
+                    "C" -> colorScheme.tertiaryContainer
+                    "＝", "⌫" -> colorScheme.primaryContainer
+                    "←" -> colorScheme.darkAccent
+                    else -> colorScheme.surfaceVariant
+                }
+
+                val btnTextColor = when (button) {
+                    in listOf("+", "−", "×", "÷") -> colorScheme.onSecondaryContainer
+                    "C" -> colorScheme.onTertiaryContainer
+                    "＝", "⌫" -> colorScheme.onPrimaryContainer
+                    "←" -> colorScheme.onDarkAccent
+                    else -> colorScheme.onSurface
+                }
+
+                Button(
+                    onClick = { onButtonClick(button) },
+                    modifier = Modifier
+                        .padding(0.5.dp)
+                        .aspectRatio(1.2f)
+                        .weight(1f),
+                    colors = ButtonDefaults.buttonColors(
+                        backgroundColor = backgroundColor,
+                        contentColor = btnTextColor
+                    )
+                ) {
                     if (button == "←") {
                         androidx.wear.compose.material.Icon(
                             painter = androidx.compose.ui.res.painterResource(id = com.alecdev.quickcalc.R.drawable.ic_arrow_back),

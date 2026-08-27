@@ -12,6 +12,8 @@ import androidx.wear.tiles.RequestBuilders
 import androidx.wear.tiles.ResourceBuilders
 import androidx.wear.tiles.TileBuilders
 import androidx.wear.tiles.TileService
+import com.alecdev.quickcalc.presentation.CalculatorEngine
+import com.alecdev.quickcalc.presentation.HistoryRepository
 import com.google.common.util.concurrent.ListenableFuture
 
 private const val RESOURCES_VERSION = "0"
@@ -79,20 +81,21 @@ private fun handleTileInput(context: Context, clickableId: String): String {
         "＝" -> {
             if (expression.isNotEmpty()) {
                 try {
-                    val sanitized = expression.replace('÷', '/').replace('×', '*').replace('−', '-')
-                    val result = net.objecthunter.exp4j.ExpressionBuilder(sanitized).build().evaluate()
-                    val df = java.text.DecimalFormat("#.########")
-                    expression = df.format(result)
+                    val result = CalculatorEngine.evaluate(expression)
+                    if (result.isNotEmpty()) {
+                        HistoryRepository.addHistoryEntry(context, expression, result)
+                        expression = result
+                    }
                 } catch (e: Exception) {
                     // do nothing on error
                 }
             }
         }
         "+", "−", "×", "÷" -> {
-            val isLastCharOp = expression.isNotEmpty() && expression.last() in listOf('+', '−', '×', '÷')
+            val isLastCharOp = CalculatorEngine.isLastCharOperation(expression)
             if (expression.isNotEmpty() && !isLastCharOp) {
                 expression += input
-            } else if (expression.isEmpty() && input == "−") {
+            } else if (expression.isEmpty() && (input == "−" || input == "-")) {
                 expression += input
             }
         }
@@ -100,7 +103,11 @@ private fun handleTileInput(context: Context, clickableId: String): String {
             if (expression == "Error") {
                 expression = ""
             }
-            expression += input
+            if (input == "." && (expression.lastOrNull()?.isDigit() != true || CalculatorEngine.lastNumberContainsDecimal(expression))) {
+                // ignore invalid decimal
+            } else {
+                expression += input
+            }
         }
     }
 
