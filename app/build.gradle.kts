@@ -91,6 +91,7 @@ dependencies {
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.wear.compose:compose-material:1.4.0")
     implementation("androidx.wear.compose:compose-foundation:1.4.0")
+    implementation("androidx.wear:wear-tooling-preview:1.0.0")
 
     implementation("androidx.wear.tiles:tiles:1.4.0")
     implementation("androidx.wear.protolayout:protolayout:1.2.0")

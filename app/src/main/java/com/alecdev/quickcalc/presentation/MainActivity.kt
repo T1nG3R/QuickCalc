@@ -37,7 +37,7 @@ import androidx.compose.ui.input.rotary.onRotaryScrollEvent
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Devices
+import androidx.wear.tooling.preview.devices.WearDevices
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -89,6 +89,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+@Suppress("FunctionName")
 @Composable
 fun CalculatorApp(calculatorState: CalculatorState = remember { CalculatorState() }) {
     val context = LocalContext.current
@@ -393,6 +394,7 @@ fun CalculatorApp(calculatorState: CalculatorState = remember { CalculatorState(
     }
 }
 
+@Suppress("FunctionName")
 @Composable
 fun CalculatorButtons(
     page: Int,
@@ -462,6 +464,7 @@ fun getSystemColorScheme(): ButtonColorScheme {
     }
 }
 
+@Suppress("FunctionName")
 @Composable
 fun ButtonRow(
     buttons: List<String>,
@@ -541,7 +544,8 @@ fun ButtonRow(
     }
 }
 
-@Preview(device = Devices.WEAR_OS_SMALL_ROUND, showSystemUi = true)
+@Preview(device = WearDevices.SMALL_ROUND, showSystemUi = true)
+@Suppress("FunctionName")
 @Composable
 fun DefaultPreview() {
     CalculatorApp()
