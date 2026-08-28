@@ -26,68 +26,42 @@ class CalculatorState {
     }
 
     fun onInput(input: String) {
-        if (input == "." && (expression.lastOrNull()?.isDigit() != true || CalculatorEngine.lastNumberContainsDecimal(expression))) {
-            return
-        }
-
-        expression += input
+        expression = CalculatorEngine.applyInput(expression, input)
         updateDisplay()
     }
 
     fun onOperation(op: String) {
-        val sanitizedOp = if (op == "−") "-" else op
-
-        if (expression.isEmpty() && sanitizedOp == "-") {
-            expression += sanitizedOp
-            updateDisplay()
-            return
-        }
-
-        if (sanitizedOp == "-" && CalculatorEngine.isLastCharOperation(expression) && expression.last() != '-') {
-            expression += sanitizedOp
-            updateDisplay()
-            return
-        }
-
-        if (expression.isNotEmpty() && !CalculatorEngine.isLastCharOperation(expression)) {
-            expression += sanitizedOp
-            updateDisplay()
-        }
+        expression = CalculatorEngine.applyOperation(expression, op)
+        updateDisplay()
     }
 
     fun onCalculate() {
-        try {
-            val output = CalculatorEngine.evaluate(expression)
-            if (expression.isNotEmpty() && expression != output && output.isNotEmpty()) {
-                history.add(HistoryItem(expression = expression, result = output))
+        val previousExpr = expression
+        val (result, isSuccess) = CalculatorEngine.applyCalculate(expression)
+        if (isSuccess) {
+            if (previousExpr.isNotEmpty() && previousExpr != result && result.isNotEmpty()) {
+                history.add(HistoryItem(expression = previousExpr, result = result))
             }
-            display = output
-            expression = display
-        } catch (e: Exception) {
-            // do nothing on error
+            display = result
+            expression = result
+        } else if (result == "Error") {
+            display = "Error"
+            expression = "Error"
         }
     }
 
     fun onClear() {
-        expression = ""
+        expression = CalculatorEngine.applyClear()
         updateDisplay()
     }
 
     fun onDelete() {
-        if (expression.isNotEmpty()) {
-            expression = expression.dropLast(1)
-            updateDisplay()
-        }
+        expression = CalculatorEngine.applyDelete(expression)
+        updateDisplay()
     }
 
     fun onReciprocal() {
-        if (expression.isEmpty()) {
-            expression = "1/"
-        } else if (expression == "1/") {
-            expression = ""
-        } else {
-            expression = "1/($expression)"
-        }
+        expression = CalculatorEngine.applyReciprocal(expression)
         updateDisplay()
     }
 

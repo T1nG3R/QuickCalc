@@ -90,14 +90,26 @@ class CalculatorStateTest {
     }
 
     @Test
-    fun testInvalidExpressionIgnored() {
+    fun testInvalidExpressionShowsErrorAndRecovers() {
         val state = CalculatorState()
         state.onInput("5")
         state.onOperation("+")
         assertEquals("5+", state.display)
-        // invalid expression onCalculate should do nothing (not change display to Error)
         state.onCalculate()
-        assertEquals("5+", state.display)
+        assertEquals("Error", state.display)
+        state.onInput("2")
+        assertEquals("2", state.display)
+    }
+
+    @Test
+    fun testDivisionByZeroShowsError() {
+        val state = CalculatorState()
+        state.onInput("5")
+        state.onOperation("÷")
+        state.onInput("0")
+        assertEquals("5÷0", state.display)
+        state.onCalculate()
+        assertEquals("Error", state.display)
     }
 
     @Test
@@ -215,5 +227,35 @@ class CalculatorStateTest {
         state.onInput(".")
         state.onInput("5")
         assertEquals("2.5^3.5", state.display)
+    }
+
+    @Test
+    fun testEngineStateMachineFunctions() {
+        // applyInput
+        assertEquals("12", CalculatorEngine.applyInput("1", "2"))
+        assertEquals("12.", CalculatorEngine.applyInput("12", "."))
+        assertEquals("12.", CalculatorEngine.applyInput("12.", ".")) // blocked duplicate dot
+
+        // applyOperation
+        assertEquals("12+", CalculatorEngine.applyOperation("12", "+"))
+        assertEquals("-", CalculatorEngine.applyOperation("", "-"))
+
+        // applyDelete & applyClear
+        assertEquals("1", CalculatorEngine.applyDelete("12"))
+        assertEquals("", CalculatorEngine.applyDelete("1"))
+        assertEquals("", CalculatorEngine.applyClear())
+
+        // applyReciprocal
+        assertEquals("1/(8)", CalculatorEngine.applyReciprocal("8"))
+        assertEquals("1/", CalculatorEngine.applyReciprocal(""))
+
+        // applyCalculate
+        val (validRes, validOk) = CalculatorEngine.applyCalculate("8×2")
+        assertTrue(validOk)
+        assertEquals("16", validRes)
+
+        val (errRes, errOk) = CalculatorEngine.applyCalculate("8÷0")
+        org.junit.Assert.assertFalse(errOk)
+        assertEquals("Error", errRes)
     }
 }

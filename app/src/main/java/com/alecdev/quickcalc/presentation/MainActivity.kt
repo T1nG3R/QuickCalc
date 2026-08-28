@@ -328,7 +328,7 @@ fun CalculatorApp(calculatorState: CalculatorState = remember { CalculatorState(
                                 .horizontalScroll(scrollState)
                         ) {
                             val displayText = calculatorState.display.ifEmpty { "0" }
-                            val textColor = if (calculatorState.display.isEmpty()) Color.Gray else Color.White
+                            val textColor = if (calculatorState.display.isEmpty()) Color.Gray else if (calculatorState.display == "Error") Color(0xFFFF6E6E) else Color.White
                             Text(
                                 text = displayText,
                                 color = textColor,

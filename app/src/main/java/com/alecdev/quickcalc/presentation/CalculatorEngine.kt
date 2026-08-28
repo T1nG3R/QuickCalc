@@ -59,4 +59,65 @@ object CalculatorEngine {
         val lastNumber = expression.split(Regex("[-+−×÷*/^()√]")).last()
         return "." in lastNumber
     }
+
+    fun applyInput(currentExpr: String, input: String): String {
+        val baseExpr = if (currentExpr == "Error") "" else currentExpr
+
+        if (input == ".") {
+            if (baseExpr.lastOrNull()?.isDigit() != true || lastNumberContainsDecimal(baseExpr)) {
+                return baseExpr
+            }
+        }
+        return baseExpr + input
+    }
+
+    fun applyOperation(currentExpr: String, op: String): String {
+        val baseExpr = if (currentExpr == "Error") "" else currentExpr
+        val sanitizedOp = if (op == "−") "-" else op
+
+        if (baseExpr.isEmpty() && sanitizedOp == "-") {
+            return "-"
+        }
+
+        if (sanitizedOp == "-" && isLastCharOperation(baseExpr) && baseExpr.last() != '-') {
+            return baseExpr + sanitizedOp
+        }
+
+        if (baseExpr.isNotEmpty() && !isLastCharOperation(baseExpr)) {
+            return baseExpr + sanitizedOp
+        }
+
+        return baseExpr
+    }
+
+    fun applyDelete(currentExpr: String): String {
+        if (currentExpr == "Error" || currentExpr.isEmpty()) {
+            return ""
+        }
+        return currentExpr.dropLast(1)
+    }
+
+    fun applyClear(): String = ""
+
+    fun applyReciprocal(currentExpr: String): String {
+        if (currentExpr == "Error" || currentExpr.isEmpty()) {
+            return "1/"
+        }
+        if (currentExpr == "1/") {
+            return ""
+        }
+        return "1/($currentExpr)"
+    }
+
+    fun applyCalculate(currentExpr: String): Pair<String, Boolean> {
+        if (currentExpr.isBlank() || currentExpr == "Error") {
+            return Pair("", false)
+        }
+        return try {
+            val result = evaluate(currentExpr)
+            Pair(result, true)
+        } catch (e: Exception) {
+            Pair("Error", false)
+        }
+    }
 }

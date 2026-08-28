@@ -71,43 +71,29 @@ private fun handleTileInput(context: Context, clickableId: String): String {
 
     when (input) {
         "C" -> {
-            expression = ""
+            expression = CalculatorEngine.applyClear()
         }
         "⌫" -> {
-            if (expression.isNotEmpty()) {
-                expression = expression.dropLast(1)
-            }
+            expression = CalculatorEngine.applyDelete(expression)
         }
         "＝" -> {
-            if (expression.isNotEmpty()) {
-                try {
-                    val result = CalculatorEngine.evaluate(expression)
-                    if (result.isNotEmpty()) {
-                        HistoryRepository.addHistoryEntry(context, expression, result)
-                        expression = result
-                    }
-                } catch (e: Exception) {
-                    // do nothing on error
-                }
+            val previousExpr = expression
+            val (result, isSuccess) = CalculatorEngine.applyCalculate(expression)
+            if (isSuccess) {
+                HistoryRepository.addHistoryEntry(context, previousExpr, result)
+                expression = result
+            } else if (result == "Error") {
+                expression = "Error"
             }
         }
         "+", "−", "×", "÷" -> {
-            val isLastCharOp = CalculatorEngine.isLastCharOperation(expression)
-            if (expression.isNotEmpty() && !isLastCharOp) {
-                expression += input
-            } else if (expression.isEmpty() && (input == "−" || input == "-")) {
-                expression += input
-            }
+            expression = CalculatorEngine.applyOperation(expression, input)
+        }
+        "1/x" -> {
+            expression = CalculatorEngine.applyReciprocal(expression)
         }
         else -> {
-            if (expression == "Error") {
-                expression = ""
-            }
-            if (input == "." && (expression.lastOrNull()?.isDigit() != true || CalculatorEngine.lastNumberContainsDecimal(expression))) {
-                // ignore invalid decimal
-            } else {
-                expression += input
-            }
+            expression = CalculatorEngine.applyInput(expression, input)
         }
     }
 
