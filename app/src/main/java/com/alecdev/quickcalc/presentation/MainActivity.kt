@@ -109,6 +109,12 @@ fun CalculatorApp(calculatorState: CalculatorState = remember { CalculatorState(
         focusRequester.requestFocus()
     }
 
+    LaunchedEffect(keysVisible) {
+        if (!keysVisible && calculatorState.history.isNotEmpty()) {
+            lazyListState.scrollToItem(0)
+        }
+    }
+
     LaunchedEffect(key1 = calculatorState.display) {
         scrollState.animateScrollTo(scrollState.maxValue)
     }
@@ -126,16 +132,22 @@ fun CalculatorApp(calculatorState: CalculatorState = remember { CalculatorState(
                             false
                         }
                     } else {
-                        val isAtTop = calculatorState.history.isEmpty() ||
-                                (lazyListState.centerItemIndex == 0 && lazyListState.centerItemScrollOffset == 0)
-                        if (event.verticalScrollPixels < 0f && isAtTop) {
-                            keysVisible = true
+                        if (event.verticalScrollPixels < 0f) {
+                            if (calculatorState.history.isEmpty() || !lazyListState.canScrollBackward) {
+                                keysVisible = true
+                            } else {
+                                coroutineScope.launch {
+                                    lazyListState.scrollBy(event.verticalScrollPixels)
+                                }
+                            }
                             true
-                        } else {
+                        } else if (event.verticalScrollPixels > 0f) {
                             coroutineScope.launch {
                                 lazyListState.scrollBy(event.verticalScrollPixels)
                             }
                             true
+                        } else {
+                            false
                         }
                     }
                 }
