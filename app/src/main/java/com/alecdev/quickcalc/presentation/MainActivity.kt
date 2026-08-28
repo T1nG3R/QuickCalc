@@ -127,7 +127,7 @@ fun CalculatorApp(calculatorState: CalculatorState = remember { CalculatorState(
                         }
                     } else {
                         val isAtTop = calculatorState.history.isEmpty() ||
-                                lazyListState.layoutInfo.visibleItemsInfo.firstOrNull()?.index == 0
+                                (lazyListState.centerItemIndex == 0 && lazyListState.centerItemScrollOffset == 0)
                         if (event.verticalScrollPixels < 0f && isAtTop) {
                             keysVisible = true
                             true

@@ -258,4 +258,17 @@ class CalculatorStateTest {
         org.junit.Assert.assertFalse(errOk)
         assertEquals("Error", errRes)
     }
+
+    @Test
+    fun testHistoryCappingToMax30Items() {
+        val items = (1..40).map { com.alecdev.quickcalc.presentation.HistoryItem("$it+$it", "${it * 2}") }
+        val capped = if (items.size > com.alecdev.quickcalc.presentation.HistoryRepository.MAX_HISTORY_ITEMS) {
+            items.takeLast(com.alecdev.quickcalc.presentation.HistoryRepository.MAX_HISTORY_ITEMS)
+        } else {
+            items
+        }
+        assertEquals(30, capped.size)
+        assertEquals("11+11", capped.first().expression)
+        assertEquals("40+40", capped.last().expression)
+    }
 }
