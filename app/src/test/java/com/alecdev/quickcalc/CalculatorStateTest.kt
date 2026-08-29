@@ -113,11 +113,63 @@ class CalculatorStateTest {
     }
 
     @Test
-    fun testInvalidExpressionShowsErrorAndRecovers() {
+    fun testTrailingOperatorCalculation() {
         val state = CalculatorState()
+        
+        // single number with trailing operator
         state.onInput("5")
         state.onOperation("+")
         assertEquals("5+", state.display)
+        state.onCalculate()
+        assertEquals("5", state.display)
+
+        // expression with trailing operator
+        state.onClear()
+        state.onInput("5")
+        state.onOperation("−")
+        state.onInput("2")
+        state.onOperation("+")
+        assertEquals("5-2+", state.display)
+        state.onCalculate()
+        assertEquals("3", state.display)
+
+        // expression with percent or other trailing signs
+        assertEquals("3", CalculatorEngine.evaluate("5-2%"))
+        assertEquals("3", CalculatorEngine.evaluate("5-2×"))
+        assertEquals("3", CalculatorEngine.evaluate("5-2÷"))
+        assertEquals("3", CalculatorEngine.evaluate("5-2-"))
+        assertEquals("5", CalculatorEngine.evaluate("5+-"))
+        assertEquals("5", CalculatorEngine.evaluate("5+("))
+        assertEquals("5", CalculatorEngine.evaluate("5+√("))
+        assertEquals("3", CalculatorEngine.evaluate("√(9+"))
+        assertEquals("5", CalculatorEngine.evaluate("5."))
+
+        // state with unclosed parenthesis and trailing operator
+        state.onClear()
+        state.onInput("(")
+        state.onInput("5")
+        state.onOperation("−")
+        assertEquals("(5-", state.display)
+        state.onCalculate()
+        assertEquals("5", state.display)
+
+        // purely operators or empty expression
+        val (emptyRes, emptyOk) = CalculatorEngine.applyCalculate("-")
+        org.junit.Assert.assertFalse(emptyOk)
+        assertEquals("", emptyRes)
+
+        val (plusRes, plusOk) = CalculatorEngine.applyCalculate("+")
+        org.junit.Assert.assertFalse(plusOk)
+        assertEquals("", plusRes)
+    }
+
+    @Test
+    fun testInvalidExpressionShowsErrorAndRecovers() {
+        val state = CalculatorState()
+        state.onInput("5")
+        state.onOperation("÷")
+        state.onInput("0")
+        assertEquals("5÷0", state.display)
         state.onCalculate()
         assertEquals("Error", state.display)
         state.onInput("2")
@@ -289,6 +341,10 @@ class CalculatorStateTest {
         val (validRes, validOk) = CalculatorEngine.applyCalculate("8×2")
         assertTrue(validOk)
         assertEquals("16", validRes)
+
+        val (trailingRes, trailingOk) = CalculatorEngine.applyCalculate("8×2+")
+        assertTrue(trailingOk)
+        assertEquals("16", trailingRes)
 
         val (errRes, errOk) = CalculatorEngine.applyCalculate("8÷0")
         org.junit.Assert.assertFalse(errOk)

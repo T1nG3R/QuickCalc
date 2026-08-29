@@ -7,11 +7,29 @@ import net.objecthunter.exp4j.ExpressionBuilder
 
 object CalculatorEngine {
     private val df = DecimalFormat("#.########", DecimalFormatSymbols.getInstance(Locale.US))
-    private val TOKEN_DELIMITERS_REGEX = Regex("[-+−×÷*/^()√πe]")
+    private val TOKEN_DELIMITERS_REGEX = Regex("[-+−×÷*/^%()√πe]")
+    private val TRAILING_OP_REGEX = Regex("[-+−×÷*/^%√.]+$")
+
+    fun trimTrailingOperators(expression: String): String {
+        var trimmed = expression.trim()
+        while (trimmed.isNotEmpty()) {
+            val updated = trimmed.replace(TRAILING_OP_REGEX, "").trimEnd()
+            if (updated.endsWith("(") && updated.count { it == '(' } > updated.count { it == ')' }) {
+                trimmed = updated.dropLast(1).trimEnd()
+                continue
+            }
+            if (updated == trimmed) {
+                break
+            }
+            trimmed = updated
+        }
+        return trimmed
+    }
 
     fun sanitize(expression: String): String {
-        if (expression.isBlank()) return ""
-        var sanitized = expression
+        val trimmedExpr = trimTrailingOperators(expression)
+        if (trimmedExpr.isBlank()) return ""
+        var sanitized = trimmedExpr
             .replace('÷', '/')
             .replace('×', '*')
             .replace('−', '-')
@@ -39,8 +57,8 @@ object CalculatorEngine {
     }
 
     fun evaluate(expression: String): String {
-        if (expression.isBlank()) return ""
         val sanitized = sanitize(expression)
+        if (sanitized.isBlank()) return ""
 
         val result = ExpressionBuilder(sanitized).build().evaluate()
         if (result.isInfinite() || result.isNaN()) {
@@ -52,7 +70,7 @@ object CalculatorEngine {
     fun isLastCharOperation(expression: String): Boolean {
         if (expression.isEmpty()) return false
         val last = expression.last()
-        return last in listOf('+', '-', '−', '×', '÷', '*', '/')
+        return last in listOf('+', '-', '−', '×', '÷', '*', '/', '^', '%')
     }
 
     fun lastNumberContainsDecimal(expression: String): Boolean {
@@ -119,7 +137,11 @@ object CalculatorEngine {
         }
         return try {
             val result = evaluate(currentExpr)
-            Pair(result, true)
+            if (result.isBlank()) {
+                Pair("", false)
+            } else {
+                Pair(result, true)
+            }
         } catch (e: Exception) {
             Pair("Error", false)
         }
