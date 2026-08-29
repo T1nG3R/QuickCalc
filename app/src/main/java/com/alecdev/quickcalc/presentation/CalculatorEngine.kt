@@ -7,6 +7,7 @@ import net.objecthunter.exp4j.ExpressionBuilder
 
 object CalculatorEngine {
     private val df = DecimalFormat("#.########", DecimalFormatSymbols.getInstance(Locale.US))
+    private val TOKEN_DELIMITERS_REGEX = Regex("[-+−×÷*/^()√πe]")
 
     fun sanitize(expression: String): String {
         if (expression.isBlank()) return ""
@@ -56,7 +57,7 @@ object CalculatorEngine {
 
     fun lastNumberContainsDecimal(expression: String): Boolean {
         if (expression.isEmpty()) return false
-        val lastNumber = expression.split(Regex("[-+−×÷*/^()√]")).last()
+        val lastNumber = expression.split(TOKEN_DELIMITERS_REGEX).last()
         return "." in lastNumber
     }
 
@@ -64,8 +65,11 @@ object CalculatorEngine {
         val baseExpr = if (currentExpr == "Error") "" else currentExpr
 
         if (input == ".") {
-            if (baseExpr.lastOrNull()?.isDigit() != true || lastNumberContainsDecimal(baseExpr)) {
+            if (lastNumberContainsDecimal(baseExpr)) {
                 return baseExpr
+            }
+            if (baseExpr.isEmpty() || baseExpr.last().isDigit().not()) {
+                return baseExpr + "0."
             }
         }
         return baseExpr + input

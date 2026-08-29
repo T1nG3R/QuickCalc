@@ -27,24 +27,47 @@ class CalculatorStateTest {
     @Test
     fun testDecimalConstraint() {
         val state = CalculatorState()
-        // dot on empty expression is ignored
+        // dot on empty expression automatically inserts "0."
         state.onInput(".")
-        assertEquals("", state.display)
-
-        state.onInput("7")
-        state.onInput(".")
-        state.onInput("5")
-        assertEquals("7.5", state.display)
+        assertEquals("0.", state.display)
 
         // second dot in the same number is ignored
         state.onInput(".")
-        assertEquals("7.5", state.display)
+        assertEquals("0.", state.display)
 
-        state.onOperation("+")
-        state.onInput("2")
+        state.onInput("5")
+        assertEquals("0.5", state.display)
+
+        // second dot after digits is ignored
         state.onInput(".")
+        assertEquals("0.5", state.display)
+
+        // dot immediately following an operator inserts "0."
+        state.onOperation("+")
+        assertEquals("0.5+", state.display)
+        state.onInput(".")
+        assertEquals("0.5+0.", state.display)
+
+        // second dot in operator number is ignored
+        state.onInput(".")
+        assertEquals("0.5+0.", state.display)
+
         state.onInput("3")
-        assertEquals("7.5+2.3", state.display)
+        assertEquals("0.5+0.3", state.display)
+        state.onCalculate()
+        assertEquals("0.8", state.display)
+    }
+
+    @Test
+    fun testLeadingDecimalDirectInputs() {
+        val state = CalculatorState()
+        state.onInput("5")
+        state.onOperation("−")
+        state.onInput(".")
+        state.onInput("2")
+        assertEquals("5-0.2", state.display)
+        state.onCalculate()
+        assertEquals("4.8", state.display)
     }
 
     @Test
@@ -235,6 +258,19 @@ class CalculatorStateTest {
         assertEquals("12", CalculatorEngine.applyInput("1", "2"))
         assertEquals("12.", CalculatorEngine.applyInput("12", "."))
         assertEquals("12.", CalculatorEngine.applyInput("12.", ".")) // blocked duplicate dot
+        assertEquals("0.", CalculatorEngine.applyInput("", "."))
+        assertEquals("0.", CalculatorEngine.applyInput("Error", "."))
+        assertEquals("5+0.", CalculatorEngine.applyInput("5+", "."))
+        assertEquals("5-0.", CalculatorEngine.applyInput("5-", "."))
+        assertEquals("5×0.", CalculatorEngine.applyInput("5×", "."))
+        assertEquals("5÷0.", CalculatorEngine.applyInput("5÷", "."))
+        assertEquals("5+0.", CalculatorEngine.applyInput("5+0.", ".")) // blocked duplicate dot
+        assertEquals("-0.", CalculatorEngine.applyInput("-", "."))
+        assertEquals("(0.", CalculatorEngine.applyInput("(", "."))
+        assertEquals("2^0.", CalculatorEngine.applyInput("2^", "."))
+        assertEquals("√(0.", CalculatorEngine.applyInput("√(", "."))
+        assertEquals("π0.", CalculatorEngine.applyInput("π", "."))
+        assertEquals("e0.", CalculatorEngine.applyInput("e", "."))
 
         // applyOperation
         assertEquals("12+", CalculatorEngine.applyOperation("12", "+"))
