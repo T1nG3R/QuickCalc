@@ -4,12 +4,13 @@ import android.content.Context
 import androidx.concurrent.futures.CallbackToFutureAdapter
 import androidx.wear.protolayout.ActionBuilders
 import androidx.wear.protolayout.ColorBuilders
+import androidx.wear.protolayout.DeviceParametersBuilders.DeviceParameters
 import androidx.wear.protolayout.DimensionBuilders
 import androidx.wear.protolayout.LayoutElementBuilders
 import androidx.wear.protolayout.ModifiersBuilders
-import androidx.wear.tiles.DeviceParametersBuilders.DeviceParameters
+import androidx.wear.protolayout.ResourceBuilders
+import androidx.wear.protolayout.TimelineBuilders
 import androidx.wear.tiles.RequestBuilders
-import androidx.wear.tiles.ResourceBuilders
 import androidx.wear.tiles.TileBuilders
 import androidx.wear.tiles.TileService
 import com.alecdev.quickcalc.presentation.CalculatorEngine
@@ -20,7 +21,7 @@ private const val RESOURCES_VERSION = "0"
 
 class MainTileService : TileService() {
 
-    override fun onResourcesRequest(
+    override fun onTileResourcesRequest(
         requestParams: RequestBuilders.ResourcesRequest
     ): ListenableFuture<ResourceBuilders.Resources> {
         return CallbackToFutureAdapter.getFuture { completer ->
@@ -34,21 +35,18 @@ class MainTileService : TileService() {
     override fun onTileRequest(
         requestParams: RequestBuilders.TileRequest
     ): ListenableFuture<TileBuilders.Tile> {
-        val lastClickId = requestParams.state?.lastClickableId
-        val expression = if (!lastClickId.isNullOrEmpty() && lastClickId.startsWith("click_")) {
+        val lastClickId = requestParams.currentState.lastClickableId
+        val expression = if (lastClickId.startsWith("click_")) {
             handleTileInput(this, lastClickId)
         } else {
             getSharedPreferences("tile_prefs", Context.MODE_PRIVATE).getString("expression", "") ?: ""
         }
 
-        val deviceParams = requestParams.deviceParameters ?: androidx.wear.tiles.DeviceParametersBuilders.DeviceParameters.Builder()
-            .setScreenWidthDp(192)
-            .setScreenHeightDp(192)
-            .build()
+        val deviceParams = requestParams.deviceConfiguration
 
-        val singleTileTimeline = androidx.wear.protolayout.TimelineBuilders.Timeline.Builder().addTimelineEntry(
-            androidx.wear.protolayout.TimelineBuilders.TimelineEntry.Builder().setLayout(
-                androidx.wear.protolayout.LayoutElementBuilders.Layout.Builder().setRoot(tileLayout(this, expression, deviceParams)).build()
+        val singleTileTimeline = TimelineBuilders.Timeline.Builder().addTimelineEntry(
+            TimelineBuilders.TimelineEntry.Builder().setLayout(
+                LayoutElementBuilders.Layout.Builder().setRoot(tileLayout(this, expression, deviceParams)).build()
             ).build()
         ).build()
 
@@ -67,9 +65,8 @@ class MainTileService : TileService() {
 private fun handleTileInput(context: Context, clickableId: String): String {
     val prefs = context.getSharedPreferences("tile_prefs", Context.MODE_PRIVATE)
     var expression = prefs.getString("expression", "") ?: ""
-    val input = clickableId.removePrefix("click_")
 
-    when (input) {
+    when (val input = clickableId.removePrefix("click_")) {
         "C" -> {
             expression = CalculatorEngine.applyClear()
         }
@@ -112,8 +109,8 @@ private fun tileLayout(
     val textColor = if (expression.isEmpty()) 0xFF8E8E93.toInt() else 0xFFFFFFFF.toInt()
 
     val displayFont = LayoutElementBuilders.FontStyle.Builder()
-        .setSize(DimensionBuilders.SpProp.Builder().setValue(24f).build())
-        .setColor(ColorBuilders.ColorProp.Builder().setArgb(textColor).build())
+        .setSize(DimensionBuilders.sp(24f))
+        .setColor(ColorBuilders.argb(textColor))
         .setPreferredFontFamilies("google-sans-flex", "sans-serif-rounded")
         .build()
 
@@ -175,8 +172,8 @@ private fun tileLayout(
         .build()
 
     return LayoutElementBuilders.Box.Builder()
-        .setWidth(DimensionBuilders.ExpandedDimensionProp.Builder().build())
-        .setHeight(DimensionBuilders.ExpandedDimensionProp.Builder().build())
+        .setWidth(DimensionBuilders.expand())
+        .setHeight(DimensionBuilders.expand())
         .setHorizontalAlignment(LayoutElementBuilders.HORIZONTAL_ALIGN_CENTER)
         .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
         .addContent(gridColumn)
@@ -195,16 +192,16 @@ private fun tileRow(
         if (index > 0) {
             rowBuilder.addContent(
                 LayoutElementBuilders.Spacer.Builder()
-                    .setWidth(DimensionBuilders.DpProp.Builder().setValue(gap).build())
-                    .setHeight(DimensionBuilders.DpProp.Builder().setValue(0f).build())
+                    .setWidth(DimensionBuilders.dp(gap))
+                    .setHeight(DimensionBuilders.dp(0f))
                     .build()
             )
         }
         if (button.isEmpty()) {
             rowBuilder.addContent(
                 LayoutElementBuilders.Spacer.Builder()
-                    .setWidth(DimensionBuilders.DpProp.Builder().setValue(buttonWidth).build())
-                    .setHeight(DimensionBuilders.DpProp.Builder().setValue(buttonHeight).build())
+                    .setWidth(DimensionBuilders.dp(buttonWidth))
+                    .setHeight(DimensionBuilders.dp(buttonHeight))
                     .build()
             )
         } else {
@@ -278,8 +275,8 @@ private fun tileButton(
     }
 
     val fontStyle = LayoutElementBuilders.FontStyle.Builder()
-        .setSize(DimensionBuilders.SpProp.Builder().setValue(fontSizeSp).build())
-        .setColor(ColorBuilders.ColorProp.Builder().setArgb(contentColorArgb).build())
+        .setSize(DimensionBuilders.sp(fontSizeSp))
+        .setColor(ColorBuilders.argb(contentColorArgb))
         .setPreferredFontFamilies("google-sans-flex", "sans-serif-rounded")
         .build()
 
@@ -291,11 +288,11 @@ private fun tileButton(
     // pill shape: corner radius = height / 2
     val cornerRadius = height / 2f
     val corner = ModifiersBuilders.Corner.Builder()
-        .setRadius(DimensionBuilders.DpProp.Builder().setValue(cornerRadius).build())
+        .setRadius(DimensionBuilders.dp(cornerRadius))
         .build()
 
     val background = ModifiersBuilders.Background.Builder()
-        .setColor(ColorBuilders.ColorProp.Builder().setArgb(backgroundColorArgb).build())
+        .setColor(ColorBuilders.argb(backgroundColorArgb))
         .setCorner(corner)
         .build()
 
@@ -305,8 +302,8 @@ private fun tileButton(
         .build()
 
     return LayoutElementBuilders.Box.Builder()
-        .setWidth(DimensionBuilders.DpProp.Builder().setValue(width).build())
-        .setHeight(DimensionBuilders.DpProp.Builder().setValue(height).build())
+        .setWidth(DimensionBuilders.dp(width))
+        .setHeight(DimensionBuilders.dp(height))
         .setModifiers(modifiers)
         .setHorizontalAlignment(LayoutElementBuilders.HORIZONTAL_ALIGN_CENTER)
         .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
@@ -315,7 +312,7 @@ private fun tileButton(
 }
 
 private fun layoutSpacer(size: Float): LayoutElementBuilders.LayoutElement {
-    val dpSize = DimensionBuilders.DpProp.Builder().setValue(size).build()
+    val dpSize = DimensionBuilders.dp(size)
     return LayoutElementBuilders.Spacer.Builder()
         .setWidth(dpSize)
         .setHeight(dpSize)
