@@ -4,9 +4,9 @@ import android.os.Build
 import android.os.Bundle
 import kotlinx.coroutines.launch
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.core.animateFloatAsState
+import androidx.wear.compose.material.SwipeToDismissBox
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.horizontalScroll
@@ -92,7 +92,6 @@ class MainActivity : ComponentActivity() {
 @Suppress("FunctionName")
 @Composable
 fun CalculatorApp(calculatorState: CalculatorState = remember { CalculatorState() }) {
-    val context = LocalContext.current
     val scrollState = rememberScrollState()
     var keysVisible by remember { mutableStateOf(true) }
     val pagerState = rememberPagerState(pageCount = { 2 })
@@ -100,10 +99,9 @@ fun CalculatorApp(calculatorState: CalculatorState = remember { CalculatorState(
     val coroutineScope = rememberCoroutineScope()
     val lazyListState = rememberScalingLazyListState()
 
-    val transitionProgress by animateFloatAsState(
-        targetValue = if (keysVisible) 0f else 1f,
-        animationSpec = tween(durationMillis = 300)
-    )
+    BackHandler(enabled = !keysVisible) {
+        keysVisible = true
+    }
 
     val isScrollInProgress = lazyListState.isScrollInProgress
     LaunchedEffect(keysVisible, isScrollInProgress) {
@@ -155,241 +153,278 @@ fun CalculatorApp(calculatorState: CalculatorState = remember { CalculatorState(
                 .focusRequester(focusRequester)
                 .focusable()
         ) {
-            if (transitionProgress > 0f) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .graphicsLayer {
-                            alpha = transitionProgress
-                            translationY = (transitionProgress - 1f) * 150.dp.toPx()
-                        }
-                ) {
-                    CurvedLayout(
-                        modifier = Modifier.fillMaxSize(),
-                        anchor = 270f,
-                        anchorType = AnchorType.Center
-                    ) {
-                        curvedText(
-                            text = "History",
-                            style = CurvedTextStyle(
-                                fontSize = 14.sp,
-                                color = Color.Gray,
-                                fontFamily = RoundedFontFamily
-                            )
+            if (!keysVisible) {
+                SwipeToDismissBox(
+                    onDismissed = { keysVisible = true },
+                    modifier = Modifier.fillMaxSize()
+                ) { isBackground ->
+                    if (isBackground) {
+                        CalculatorScreen(
+                            calculatorState = calculatorState,
+                            pagerState = pagerState,
+                            scrollState = scrollState,
+                            coroutineScope = coroutineScope
+                        )
+                    } else {
+                        HistoryScreen(
+                            calculatorState = calculatorState,
+                            lazyListState = lazyListState,
+                            onBackToCalc = { keysVisible = true }
                         )
                     }
+                }
+            } else {
+                CalculatorScreen(
+                    calculatorState = calculatorState,
+                    pagerState = pagerState,
+                    scrollState = scrollState,
+                    coroutineScope = coroutineScope
+                )
+            }
+        }
+    }
+}
 
-                    // touch fallback
-                    Box(
+@Suppress("FunctionName")
+@Composable
+fun HistoryScreen(
+    calculatorState: CalculatorState,
+    lazyListState: androidx.wear.compose.foundation.lazy.ScalingLazyListState,
+    onBackToCalc: () -> Unit
+) {
+    val context = LocalContext.current
+
+    Box(
+        modifier = Modifier.fillMaxSize()
+    ) {
+        CurvedLayout(
+            modifier = Modifier.fillMaxSize(),
+            anchor = 270f,
+            anchorType = AnchorType.Center
+        ) {
+            curvedText(
+                text = "History",
+                style = CurvedTextStyle(
+                    fontSize = 14.sp,
+                    color = Color.Gray,
+                    fontFamily = RoundedFontFamily
+                )
+            )
+        }
+
+        // touch fallback
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .fillMaxWidth()
+                .height(50.dp)
+                .clickable { onBackToCalc() }
+        )
+
+        if (calculatorState.history.isEmpty()) {
+            Text(
+                text = "No history yet",
+                style = TextStyle(
+                    fontFamily = RoundedFontFamily,
+                    fontSize = 14.sp,
+                    color = Color.Gray
+                ),
+                modifier = Modifier.align(Alignment.Center)
+            )
+        } else {
+            ScalingLazyColumn(
+                state = lazyListState,
+                contentPadding = PaddingValues(top = 48.dp, bottom = 80.dp),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 8.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+                autoCentering = null
+            ) {
+                items(calculatorState.history.asReversed()) { item ->
+                    Row(
                         modifier = Modifier
-                            .align(Alignment.TopCenter)
                             .fillMaxWidth()
-                            .height(50.dp)
-                            .clickable { keysVisible = true }
-                    )
-
-                    if (calculatorState.history.isEmpty()) {
+                            .padding(horizontal = 16.dp, vertical = 2.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
                         Text(
-                            text = "No history yet",
+                            text = item.expression,
                             style = TextStyle(
                                 fontFamily = RoundedFontFamily,
                                 fontSize = 14.sp,
-                                color = Color.Gray
+                                color = Color(0xFF9E9E9E)
                             ),
-                            modifier = Modifier.align(Alignment.Center)
+                            modifier = Modifier.weight(1f)
                         )
-                    } else {
-                        ScalingLazyColumn(
-                            state = lazyListState,
-                            contentPadding = PaddingValues(top = 48.dp, bottom = 80.dp),
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(horizontal = 8.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(6.dp),
-                            autoCentering = null
-                        ) {
-                            items(calculatorState.history.reversed()) { item ->
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(horizontal = 16.dp, vertical = 2.dp),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Text(
-                                        text = item.expression,
-                                        style = TextStyle(
-                                            fontFamily = RoundedFontFamily,
-                                            fontSize = 14.sp,
-                                            color = Color(0xFF9E9E9E)
-                                        ),
-                                        modifier = Modifier.weight(1f)
-                                    )
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text(
-                                        text = item.result,
-                                        style = TextStyle(
-                                            fontFamily = RoundedFontFamily,
-                                            fontSize = 16.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = Color.White
-                                        )
-                                    )
-                                }
-                            }
-                            if (calculatorState.history.isNotEmpty()) {
-                                item {
-                                    Button(
-                                        onClick = {
-                                            calculatorState.history.clear()
-                                            HistoryRepository.clearHistory(context)
-                                        },
-                                        modifier = Modifier
-                                            .padding(top = 8.dp)
-                                            .fillMaxWidth(0.8f)
-                                            .focusProperties { canFocus = false },
-                                        colors = ButtonDefaults.buttonColors(
-                                            backgroundColor = Color(0xFF2C2C2F),
-                                            contentColor = Color.White
-                                        )
-                                    ) {
-                                        Text(
-                                            text = "Clear History",
-                                            style = TextStyle(
-                                                fontFamily = RoundedFontFamily,
-                                                fontSize = 13.sp,
-                                                fontWeight = FontWeight.Medium
-                                            )
-                                        )
-                                    }
-                                }
-                            }
-                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = item.result,
+                            style = TextStyle(
+                                fontFamily = RoundedFontFamily,
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                        )
                     }
                 }
-            }
-
-            if (transitionProgress < 1f) {
-                val onButtonClick: (String) -> Unit = { input ->
-                    when (input) {
-                        "C" -> calculatorState.onClear()
-                        "⌫" -> calculatorState.onDelete()
-                        "＝" -> calculatorState.onCalculate()
-                        "+", "−", "×", "÷" -> calculatorState.onOperation(input)
-                        "1/x" -> calculatorState.onReciprocal()
-                        "√" -> calculatorState.onInput("√(")
-                        "^" -> calculatorState.onInput("^")
-                        "x²" -> calculatorState.onInput("^2")
-                        "x³" -> calculatorState.onInput("^3")
-                        "π" -> calculatorState.onInput("π")
-                        "e" -> calculatorState.onInput("e")
-                        "(" -> calculatorState.onInput("(")
-                        ")" -> calculatorState.onInput(")")
-                        "←" -> {
-                        coroutineScope.launch {
-                            pagerState.animateScrollToPage(0)
-                        }
-                    }
-                    else -> calculatorState.onInput(input)
-                    }
-                }
-
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(top = 22.dp, bottom = 0.dp, start = 12.dp, end = 12.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Top
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 30.dp)
-                            .graphicsLayer {
-                                alpha = 1f - transitionProgress
-                                translationY = -transitionProgress * 100.dp.toPx()
-                                compositingStrategy = CompositingStrategy.Offscreen
-                            }
-                            .drawWithContent {
-                                drawContent()
-                                val fadeWidth = 16.dp.toPx()
-                                val leftFadeWidth = if (scrollState.maxValue > 0) {
-                                    minOf(scrollState.value.toFloat(), fadeWidth)
-                                } else {
-                                    0f
-                                }
-                                val rightFadeWidth = if (scrollState.maxValue > 0) {
-                                    minOf((scrollState.maxValue - scrollState.value).toFloat(), fadeWidth)
-                                } else {
-                                    0f
-                                }
-                                drawRect(
-                                    brush = Brush.horizontalGradient(
-                                        0f to Color.Transparent,
-                                        (leftFadeWidth / size.width) to Color.Black,
-                                        ((size.width - rightFadeWidth) / size.width) to Color.Black,
-                                        1f to Color.Transparent
-                                    ),
-                                    blendMode = BlendMode.DstIn
-                                )
-                            }
-                    ) {
-                        Row(
+                if (calculatorState.history.isNotEmpty()) {
+                    item {
+                        Button(
+                            onClick = {
+                                calculatorState.history.clear()
+                                HistoryRepository.clearHistory(context)
+                            },
                             modifier = Modifier
-                                .align(Alignment.Center)
-                                .horizontalScroll(scrollState)
+                                .padding(top = 8.dp)
+                                .fillMaxWidth(0.8f)
+                                .focusProperties { canFocus = false },
+                            colors = ButtonDefaults.buttonColors(
+                                backgroundColor = Color(0xFF2C2C2F),
+                                contentColor = Color.White
+                            )
                         ) {
-                            val displayText = calculatorState.display.ifEmpty { "0" }
-                            val textColor = if (calculatorState.display.isEmpty()) Color.Gray else if (calculatorState.display == "Error") Color(0xFFFF6E6E) else Color.White
                             Text(
-                                text = displayText,
-                                color = textColor,
-                                style = MaterialTheme.typography.display3.copy(
-                                    fontFamily = RoundedFontFamily
+                                text = "Clear History",
+                                style = TextStyle(
+                                    fontFamily = RoundedFontFamily,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Medium
                                 )
                             )
                         }
                     }
-
-                    Spacer(modifier = Modifier.height(4.dp))
-
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxSize()
-                            .graphicsLayer {
-                                alpha = 1f - transitionProgress
-                                translationY = transitionProgress * 200.dp.toPx()
-                            }
-                    ) {
-                        HorizontalPager(
-                            state = pagerState,
-                            modifier = Modifier.fillMaxSize()
-                        ) { page ->
-                            CalculatorButtons(
-                                page = page,
-                                onButtonClick = onButtonClick
-                            )
-                        }
-
-                        val pageIndicatorState = remember(pagerState.currentPage, pagerState.pageCount) {
-                            object : PageIndicatorState {
-                                override val pageCount: Int get() = pagerState.pageCount
-                                override val pageOffset: Float get() = 0f
-                                override val selectedPage: Int get() = pagerState.currentPage
-                            }
-                        }
-
-                        HorizontalPageIndicator(
-                            pageIndicatorState = pageIndicatorState,
-                            modifier = Modifier
-                                .align(Alignment.BottomCenter)
-                                .padding(bottom = 2.dp)
-                        )
-                    }
                 }
             }
+        }
+    }
+}
+
+@Suppress("FunctionName")
+@Composable
+fun CalculatorScreen(
+    calculatorState: CalculatorState,
+    pagerState: androidx.compose.foundation.pager.PagerState,
+    scrollState: androidx.compose.foundation.ScrollState,
+    coroutineScope: kotlinx.coroutines.CoroutineScope
+) {
+    val onButtonClick: (String) -> Unit = { input ->
+        when (input) {
+            "C" -> calculatorState.onClear()
+            "⌫" -> calculatorState.onDelete()
+            "＝" -> calculatorState.onCalculate()
+            "+", "−", "×", "÷" -> calculatorState.onOperation(input)
+            "1/x" -> calculatorState.onReciprocal()
+            "√" -> calculatorState.onInput("√(")
+            "^" -> calculatorState.onInput("^")
+            "x²" -> calculatorState.onInput("^2")
+            "x³" -> calculatorState.onInput("^3")
+            "π" -> calculatorState.onInput("π")
+            "e" -> calculatorState.onInput("e")
+            "(" -> calculatorState.onInput("(")
+            ")" -> calculatorState.onInput(")")
+            "←" -> {
+                coroutineScope.launch {
+                    pagerState.animateScrollToPage(0)
+                }
+            }
+
+            else -> calculatorState.onInput(input)
+        }
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(top = 22.dp, bottom = 0.dp, start = 12.dp, end = 12.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Top
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 30.dp)
+                .graphicsLayer {
+                    compositingStrategy = CompositingStrategy.Offscreen
+                }
+                .drawWithContent {
+                    drawContent()
+                    val fadeWidth = 16.dp.toPx()
+                    val leftFadeWidth = if (scrollState.maxValue > 0) {
+                        minOf(scrollState.value.toFloat(), fadeWidth)
+                    } else {
+                        0f
+                    }
+                    val rightFadeWidth = if (scrollState.maxValue > 0) {
+                        minOf((scrollState.maxValue - scrollState.value).toFloat(), fadeWidth)
+                    } else {
+                        0f
+                    }
+                    drawRect(
+                        brush = Brush.horizontalGradient(
+                            0f to Color.Transparent,
+                            (leftFadeWidth / size.width) to Color.Black,
+                            ((size.width - rightFadeWidth) / size.width) to Color.Black,
+                            1f to Color.Transparent
+                        ),
+                        blendMode = BlendMode.DstIn
+                    )
+                }
+        ) {
+            Row(
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .horizontalScroll(scrollState)
+            ) {
+                val displayText = calculatorState.display.ifEmpty { "0" }
+                val textColor =
+                    if (calculatorState.display.isEmpty()) Color.Gray else if (calculatorState.display == "Error") Color(
+                        0xFFFF6E6E
+                    ) else Color.White
+                Text(
+                    text = displayText,
+                    color = textColor,
+                    style = MaterialTheme.typography.display3.copy(
+                        fontFamily = RoundedFontFamily
+                    )
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(4.dp))
+
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxSize()
+        ) {
+            HorizontalPager(
+                state = pagerState,
+                modifier = Modifier.fillMaxSize()
+            ) { page ->
+                CalculatorButtons(
+                    page = page,
+                    onButtonClick = onButtonClick
+                )
+            }
+
+            val pageIndicatorState = remember(pagerState.currentPage, pagerState.pageCount) {
+                object : PageIndicatorState {
+                    override val pageCount: Int get() = pagerState.pageCount
+                    override val pageOffset: Float get() = 0f
+                    override val selectedPage: Int get() = pagerState.currentPage
+                }
+            }
+
+            HorizontalPageIndicator(
+                pageIndicatorState = pageIndicatorState,
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 2.dp)
+            )
         }
     }
 }
