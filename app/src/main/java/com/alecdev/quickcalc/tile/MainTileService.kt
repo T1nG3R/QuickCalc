@@ -77,10 +77,12 @@ private fun handleTileInput(context: Context, clickableId: String): String {
             expression = CalculatorEngine.applyDelete(expression)
         }
         "＝" -> {
-            val previousExpr = expression
+            val cleanExpr = CalculatorEngine.trimTrailingOperators(expression)
             val (result, isSuccess) = CalculatorEngine.applyCalculate(expression)
             if (isSuccess) {
-                HistoryRepository.addHistoryEntry(context, previousExpr, result)
+                if (cleanExpr.isNotEmpty() && cleanExpr != result && result.isNotEmpty()) {
+                    HistoryRepository.addHistoryEntry(context, cleanExpr, result)
+                }
                 expression = result
             } else if (result == "Error") {
                 expression = "Error"

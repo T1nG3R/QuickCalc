@@ -36,11 +36,11 @@ class CalculatorState {
     }
 
     fun onCalculate() {
-        val previousExpr = expression
+        val cleanExpr = CalculatorEngine.trimTrailingOperators(expression)
         val (result, isSuccess) = CalculatorEngine.applyCalculate(expression)
         if (isSuccess) {
-            if (previousExpr.isNotEmpty() && previousExpr != result && result.isNotEmpty()) {
-                history.add(HistoryItem(expression = previousExpr, result = result))
+            if (cleanExpr.isNotEmpty() && cleanExpr != result && result.isNotEmpty()) {
+                history.add(HistoryItem(expression = cleanExpr, result = result))
             }
             display = result
             expression = result

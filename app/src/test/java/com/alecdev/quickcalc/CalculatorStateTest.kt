@@ -201,6 +201,30 @@ class CalculatorStateTest {
     }
 
     @Test
+    fun testHistoryWithTrailingOperators() {
+        val state = CalculatorState()
+
+        // 5+ calculation should not add "5 = 5" to history
+        state.onInput("5")
+        state.onOperation("+")
+        state.onCalculate()
+        assertEquals("5", state.display)
+        assertTrue(state.history.isEmpty())
+
+        // 5-2+ calculation should add "5-2" -> "3" to history (stripped trailing operator)
+        state.onClear()
+        state.onInput("5")
+        state.onOperation("−")
+        state.onInput("2")
+        state.onOperation("+")
+        state.onCalculate()
+        assertEquals("3", state.display)
+        assertEquals(1, state.history.size)
+        assertEquals("5-2", state.history[0].expression)
+        assertEquals("3", state.history[0].result)
+    }
+
+    @Test
     fun testScientificSquareRoot() {
         val state = CalculatorState()
         state.onInput("√(")
