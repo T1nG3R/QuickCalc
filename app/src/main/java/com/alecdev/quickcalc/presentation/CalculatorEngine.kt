@@ -9,6 +9,7 @@ object CalculatorEngine {
     private val df = DecimalFormat("#.########", DecimalFormatSymbols.getInstance(Locale.US))
     private val TOKEN_DELIMITERS_REGEX = Regex("[-+−×÷*/^%()√πe]")
     private val TRAILING_OP_REGEX = Regex("[-+−×÷*/^%√.]+$")
+    private val OPERATOR_CHARS = charArrayOf('+', '-', '−', '×', '÷', '*', '/', '^', '%')
 
     fun trimTrailingOperators(expression: String): String {
         var trimmed = expression.trim()
@@ -70,7 +71,7 @@ object CalculatorEngine {
     fun isLastCharOperation(expression: String): Boolean {
         if (expression.isEmpty()) return false
         val last = expression.last()
-        return last in listOf('+', '-', '−', '×', '÷', '*', '/', '^', '%')
+        return last in OPERATOR_CHARS
     }
 
     fun lastNumberContainsDecimal(expression: String): Boolean {
@@ -97,19 +98,31 @@ object CalculatorEngine {
         val baseExpr = if (currentExpr == "Error") "" else currentExpr
         val sanitizedOp = if (op == "−") "-" else op
 
-        if (baseExpr.isEmpty() && sanitizedOp == "-") {
+        if (baseExpr.isEmpty()) {
+            return if (sanitizedOp == "-") "-" else ""
+        }
+
+        if (baseExpr == "-") {
             return "-"
         }
 
-        if (sanitizedOp == "-" && isLastCharOperation(baseExpr) && baseExpr.last() != '-') {
-            return baseExpr + sanitizedOp
+        if (baseExpr.endsWith("(-")) {
+            return baseExpr
         }
 
-        if (baseExpr.isNotEmpty() && !isLastCharOperation(baseExpr)) {
-            return baseExpr + sanitizedOp
+        if (baseExpr.endsWith("(")) {
+            return if (sanitizedOp == "-") "$baseExpr-" else baseExpr
         }
 
-        return baseExpr
+        if (isLastCharOperation(baseExpr)) {
+            val stripped = baseExpr.trimEnd(*OPERATOR_CHARS)
+            if (stripped.isEmpty() || stripped.endsWith("(")) {
+                return if (sanitizedOp == "-") "$stripped-" else baseExpr
+            }
+            return stripped + sanitizedOp
+        }
+
+        return baseExpr + sanitizedOp
     }
 
     fun applyDelete(currentExpr: String): String {
