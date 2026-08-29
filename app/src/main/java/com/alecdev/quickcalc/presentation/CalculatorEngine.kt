@@ -107,6 +107,16 @@ object CalculatorEngine {
         }
 
         if (baseExpr.endsWith("(-")) {
+            if (sanitizedOp == "-") {
+                return baseExpr
+            }
+            val beforeParen = baseExpr.dropLast(2)
+            if (isLastCharOperation(beforeParen)) {
+                val stripped = beforeParen.trimEnd { it in OPERATOR_CHARS }
+                if (stripped.isNotEmpty() && !stripped.endsWith("(")) {
+                    return stripped + sanitizedOp
+                }
+            }
             return baseExpr
         }
 
@@ -115,9 +125,12 @@ object CalculatorEngine {
         }
 
         if (isLastCharOperation(baseExpr)) {
-            val stripped = baseExpr.trimEnd(*OPERATOR_CHARS)
+            if (sanitizedOp == "-") {
+                return "$baseExpr(-"
+            }
+            val stripped = baseExpr.trimEnd { it in OPERATOR_CHARS }
             if (stripped.isEmpty() || stripped.endsWith("(")) {
-                return if (sanitizedOp == "-") "$stripped-" else baseExpr
+                return baseExpr
             }
             return stripped + sanitizedOp
         }

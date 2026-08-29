@@ -167,7 +167,7 @@ class CalculatorStateTest {
     fun testSmoothOperatorReplacement() {
         val state = CalculatorState()
 
-        // 5 + -> replace with × -> replace with ÷ -> replace with − -> replace with +
+        // 5 + -> replace with × -> replace with ÷ -> replace with +
         state.onInput("5")
         state.onOperation("+")
         assertEquals("5+", state.display)
@@ -178,9 +178,6 @@ class CalculatorStateTest {
         state.onOperation("÷")
         assertEquals("5÷", state.display)
 
-        state.onOperation("−")
-        assertEquals("5-", state.display)
-
         state.onOperation("+")
         assertEquals("5+", state.display)
 
@@ -188,6 +185,53 @@ class CalculatorStateTest {
         assertEquals("5+3", state.display)
         state.onCalculate()
         assertEquals("8", state.display)
+
+        // 5 × -> minus adds bracket "(-" -> "5×(-5" -> -25
+        state.onClear()
+        state.onInput("5")
+        state.onOperation("×")
+        assertEquals("5×", state.display)
+        state.onOperation("−")
+        assertEquals("5×(-", state.display)
+        state.onInput("5")
+        assertEquals("5×(-5", state.display)
+        state.onCalculate()
+        assertEquals("-25", state.display)
+
+        // 5 - -> minus adds bracket "(-" -> "5-(-5" -> 10
+        state.onClear()
+        state.onInput("5")
+        state.onOperation("−")
+        assertEquals("5-", state.display)
+        state.onOperation("−")
+        assertEquals("5-(-", state.display)
+        state.onInput("5")
+        assertEquals("5-(-5", state.display)
+        state.onCalculate()
+        assertEquals("10", state.display)
+
+        // 5×(- -> press + replaces with 5+
+        state.onClear()
+        state.onInput("5")
+        state.onOperation("×")
+        state.onOperation("−")
+        assertEquals("5×(-", state.display)
+        state.onOperation("+")
+        assertEquals("5+", state.display)
+        state.onInput("4")
+        state.onCalculate()
+        assertEquals("9", state.display)
+
+        // 5×(- -> delete removes "-" to "5×("
+        state.onClear()
+        state.onInput("5")
+        state.onOperation("×")
+        state.onOperation("−")
+        assertEquals("5×(-", state.display)
+        state.onDelete()
+        assertEquals("5×(", state.display)
+        state.onDelete()
+        assertEquals("5×", state.display)
 
         // Parentheses expression operator replacement: (5+ -> (5×
         state.onClear()
@@ -206,12 +250,20 @@ class CalculatorStateTest {
         // applyOperation unit tests
         assertEquals("5×", CalculatorEngine.applyOperation("5+", "×"))
         assertEquals("5+", CalculatorEngine.applyOperation("5×", "+"))
-        assertEquals("5-", CalculatorEngine.applyOperation("5+", "−"))
-        assertEquals("5÷", CalculatorEngine.applyOperation("5-", "÷"))
-        assertEquals("5×", CalculatorEngine.applyOperation("5+-", "×"))
+        assertEquals("5+(-", CalculatorEngine.applyOperation("5+", "−"))
+        assertEquals("5×(-", CalculatorEngine.applyOperation("5×", "−"))
+        assertEquals("5-(-", CalculatorEngine.applyOperation("5-", "−"))
+        assertEquals("5÷(-", CalculatorEngine.applyOperation("5÷", "−"))
+        assertEquals("5^(-", CalculatorEngine.applyOperation("5^", "−"))
+        assertEquals("5+", CalculatorEngine.applyOperation("5-", "+"))
+        assertEquals("5+", CalculatorEngine.applyOperation("5×(-", "+"))
+        assertEquals("5÷", CalculatorEngine.applyOperation("5×(-", "÷"))
+        assertEquals("5×", CalculatorEngine.applyOperation("5+(-", "×"))
+        assertEquals("5×(-", CalculatorEngine.applyOperation("5×(-", "−"))
         assertEquals("(5×", CalculatorEngine.applyOperation("(5+", "×"))
         assertEquals("-", CalculatorEngine.applyOperation("", "−"))
         assertEquals("-", CalculatorEngine.applyOperation("-", "+"))
+        assertEquals("(-", CalculatorEngine.applyOperation("(-", "+"))
     }
 
 
