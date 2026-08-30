@@ -2,7 +2,11 @@ package com.alecdev.quickcalc.presentation
 
 import android.os.Build
 import android.os.Bundle
+import kotlin.math.abs
 import kotlinx.coroutines.launch
+import androidx.compose.ui.platform.LocalFontFamilyResolver
+import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.text.font.FontSynthesis
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
@@ -18,27 +22,41 @@ import androidx.wear.compose.foundation.lazy.ScalingLazyColumn
 import androidx.wear.compose.foundation.lazy.ScalingLazyListState
 import androidx.wear.compose.foundation.lazy.rememberScalingLazyListState
 import androidx.wear.compose.foundation.lazy.items
-import androidx.wear.compose.foundation.CurvedLayout
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.wear.compose.foundation.AnchorType
-import androidx.wear.compose.material.curvedText
+import androidx.wear.compose.foundation.CurvedLayout
 import androidx.wear.compose.foundation.CurvedTextStyle
+import androidx.wear.compose.material.curvedText
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import android.graphics.Paint
+import android.graphics.Path
+import android.graphics.Typeface
+import androidx.compose.foundation.Canvas
+import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.unit.TextUnit
+import com.alecdev.quickcalc.R
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.rotary.onRotaryScrollEvent
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.wear.tooling.preview.devices.WearDevices
@@ -101,7 +119,17 @@ fun CalculatorApp(calculatorState: CalculatorState = remember { CalculatorState(
     val focusRequester = remember { FocusRequester() }
     val coroutineScope = rememberCoroutineScope()
     val lazyListState = rememberScalingLazyListState()
-    var verticalDragOffset by remember { mutableFloatStateOf(0f) }
+
+    val density = LocalDensity.current
+    val configuration = LocalConfiguration.current
+    val screenHeightPx = remember(density, configuration) {
+        with(density) { configuration.screenHeightDp.dp.toPx() }
+    }
+
+    var dragOffsetY by remember { mutableFloatStateOf(0f) }
+    val animOffsetY = remember { Animatable(0f) }
+    var isAnimating by remember { mutableStateOf(false) }
+    val displayOffsetY = if (isAnimating) animOffsetY.value else dragOffsetY
 
     BackHandler(enabled = !keysVisible) {
         keysVisible = true
@@ -115,6 +143,9 @@ fun CalculatorApp(calculatorState: CalculatorState = remember { CalculatorState(
     LaunchedEffect(keysVisible) {
         if (!keysVisible) {
             lazyListState.scrollToItem(0)
+            dragOffsetY = 0f
+            animOffsetY.snapTo(0f)
+            isAnimating = false
         }
     }
 
@@ -122,35 +153,68 @@ fun CalculatorApp(calculatorState: CalculatorState = remember { CalculatorState(
         scrollState.animateScrollTo(scrollState.maxValue)
     }
 
+    val draggableState = rememberDraggableState { delta ->
+        if (!isAnimating) {
+            dragOffsetY = (dragOffsetY + delta).coerceIn(-screenHeightPx, 0f)
+        }
+    }
+
     QuickCalcTheme {
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .draggable(
-                    state = rememberDraggableState { delta ->
-                        verticalDragOffset += delta
-                    },
+                    state = draggableState,
                     orientation = Orientation.Vertical,
-                    enabled = keysVisible,
+                    enabled = keysVisible && !isAnimating,
                     onDragStarted = {
-                        verticalDragOffset = 0f
+                        dragOffsetY = 0f
                     },
                     onDragStopped = { velocity ->
-                        if (verticalDragOffset < -50f || velocity < -300f) {
-                            keysVisible = false
+                        coroutineScope.launch {
+                            isAnimating = true
+                            animOffsetY.snapTo(dragOffsetY)
+                            if (dragOffsetY < -50f || velocity < -300f) {
+                                animOffsetY.animateTo(
+                                    targetValue = -screenHeightPx,
+                                    animationSpec = tween(durationMillis = 150)
+                                )
+                                keysVisible = false
+                                dragOffsetY = 0f
+                                animOffsetY.snapTo(0f)
+                            } else {
+                                animOffsetY.animateTo(
+                                    targetValue = 0f,
+                                    animationSpec = spring(
+                                        dampingRatio = Spring.DampingRatioMediumBouncy,
+                                        stiffness = Spring.StiffnessMedium
+                                    )
+                                )
+                                dragOffsetY = 0f
+                            }
+                            isAnimating = false
                         }
-                        verticalDragOffset = 0f
                     }
                 )
                 .onRotaryScrollEvent { event ->
-                    if (keysVisible) {
+                    if (keysVisible && !isAnimating) {
                         if (event.verticalScrollPixels > 0f) {
-                            keysVisible = false
+                            coroutineScope.launch {
+                                isAnimating = true
+                                animOffsetY.snapTo(0f)
+                                animOffsetY.animateTo(
+                                    targetValue = -screenHeightPx,
+                                    animationSpec = tween(durationMillis = 150)
+                                )
+                                keysVisible = false
+                                animOffsetY.snapTo(0f)
+                                isAnimating = false
+                            }
                             true
                         } else {
                             false
                         }
-                    } else {
+                    } else if (!keysVisible) {
                         if (event.verticalScrollPixels < 0f) {
                             if (calculatorState.history.isEmpty() || !lazyListState.canScrollBackward) {
                                 keysVisible = true
@@ -168,6 +232,8 @@ fun CalculatorApp(calculatorState: CalculatorState = remember { CalculatorState(
                         } else {
                             false
                         }
+                    } else {
+                        false
                     }
                 }
                 .focusRequester(focusRequester)
@@ -183,7 +249,8 @@ fun CalculatorApp(calculatorState: CalculatorState = remember { CalculatorState(
                             calculatorState = calculatorState,
                             pagerState = pagerState,
                             scrollState = scrollState,
-                            coroutineScope = coroutineScope
+                            coroutineScope = coroutineScope,
+                            isInteractive = false
                         )
                     } else {
                         HistoryScreen(
@@ -197,7 +264,10 @@ fun CalculatorApp(calculatorState: CalculatorState = remember { CalculatorState(
                     calculatorState = calculatorState,
                     pagerState = pagerState,
                     scrollState = scrollState,
-                    coroutineScope = coroutineScope
+                    coroutineScope = coroutineScope,
+                    isInteractive = !isAnimating,
+                    dragOffsetY = { displayOffsetY },
+                    screenHeightPx = screenHeightPx
                 )
             }
         }
@@ -314,126 +384,259 @@ fun HistoryScreen(
 
 @Suppress("FunctionName")
 @Composable
+fun MorphingCurvedText(
+    progress: () -> Float,
+    modifier: Modifier = Modifier.fillMaxSize(),
+    text: String = "History",
+    color: Color = Color.Gray,
+    fontSize: TextUnit = 14.sp
+) {
+    val density = LocalDensity.current
+    val fontFamilyResolver = LocalFontFamilyResolver.current
+    val typeface by remember(fontFamilyResolver) {
+        derivedStateOf {
+            fontFamilyResolver.resolve(
+                fontFamily = RoundedFontFamily,
+                fontWeight = FontWeight.Normal,
+                fontStyle = FontStyle.Normal,
+                fontSynthesis = FontSynthesis.All
+            ).value as Typeface
+        }
+    }
+    val fontSizePx = remember(density, fontSize) { with(density) { fontSize.toPx() } }
+
+    val paint = remember(typeface, fontSizePx, color) {
+        Paint().apply {
+            isAntiAlias = true
+            this.typeface = typeface
+            textSize = fontSizePx
+            this.color = color.toArgb()
+        }
+    }
+
+    val fontMetrics = remember(paint) { paint.fontMetrics }
+    val topBaseLinePos = remember(fontMetrics) { -fontMetrics.top }
+    val bottomBaseLinePos = remember(fontMetrics) { fontMetrics.bottom }
+    val rect = remember { android.graphics.Rect() }
+    val textWidth = remember(paint, text) {
+        paint.getTextBounds(text, 0, text.length, rect)
+        rect.width().toFloat()
+    }
+
+    val path = remember { Path() }
+
+    Canvas(modifier = modifier) {
+        if (size.width <= 0f || size.height <= 0f) return@Canvas
+
+        val p = progress().coerceIn(0f, 1f)
+        val cx = size.width / 2f
+        val cy = size.height / 2f
+        val rOuter = minOf(size.width, size.height) / 2f
+        if (rOuter <= 0f) return@Canvas
+
+        // Exact parameters matching Wear Compose Foundation CurvedTextDelegate
+        val rTop = rOuter - topBaseLinePos
+        val kappaTop = -1f / rTop // Negative = convex upward (center below apex)
+
+        val rBottom = rOuter - bottomBaseLinePos
+        val yBottomApex = size.height - bottomBaseLinePos
+        val kappaBottom = 1f / rBottom // Positive = concave upward (center above apex)
+
+        // Interpolate curvature & apex Y
+        val currentKappa = kappaBottom + p * (kappaTop - kappaBottom)
+        val currentYApex = yBottomApex + p * (topBaseLinePos - yBottomApex)
+
+        path.reset()
+
+        if (abs(currentKappa) < 1e-4f) {
+            val halfW = textWidth / 2f
+            path.moveTo(cx - halfW, currentYApex)
+            path.lineTo(cx + halfW, currentYApex)
+        } else {
+            val currentR = 1f / abs(currentKappa)
+            val currentSweepRad = textWidth / currentR
+            val currentSweepDeg = Math.toDegrees(currentSweepRad.toDouble()).toFloat().coerceAtMost(360f)
+
+            if (currentKappa < 0f) {
+                // Top-like: Center is BELOW apex (CenterY = currentYApex + currentR)
+                val centerY = currentYApex + currentR
+                val startAngleDeg = 270f - (currentSweepDeg / 2f)
+                path.addArc(
+                    cx - currentR,
+                    centerY - currentR,
+                    cx + currentR,
+                    centerY + currentR,
+                    startAngleDeg,
+                    currentSweepDeg
+                )
+            } else {
+                // Bottom-like: Center is ABOVE apex (CenterY = currentYApex - currentR)
+                val centerY = currentYApex - currentR
+                val startAngleDeg = 90f + (currentSweepDeg / 2f)
+                path.addArc(
+                    cx - currentR,
+                    centerY - currentR,
+                    cx + currentR,
+                    centerY + currentR,
+                    startAngleDeg,
+                    -currentSweepDeg
+                )
+            }
+        }
+
+        drawIntoCanvas { canvas ->
+            canvas.nativeCanvas.drawTextOnPath(
+                text,
+                path,
+                0f,
+                0f,
+                paint
+            )
+        }
+    }
+}
+
+@Suppress("FunctionName")
+@Composable
 fun CalculatorScreen(
     calculatorState: CalculatorState,
     pagerState: androidx.compose.foundation.pager.PagerState,
     scrollState: androidx.compose.foundation.ScrollState,
-    coroutineScope: kotlinx.coroutines.CoroutineScope
+    coroutineScope: kotlinx.coroutines.CoroutineScope,
+    modifier: Modifier = Modifier,
+    isInteractive: Boolean = true,
+    dragOffsetY: () -> Float = { 0f },
+    screenHeightPx: Float = 400f
 ) {
     val onButtonClick: (String) -> Unit = { input ->
-        when (input) {
-            "C" -> calculatorState.onClear()
-            "⌫" -> calculatorState.onDelete()
-            "＝" -> calculatorState.onCalculate()
-            "+", "−", "×", "÷" -> calculatorState.onOperation(input)
-            "1/x" -> calculatorState.onReciprocal()
-            "√" -> calculatorState.onInput("√(")
-            "^" -> calculatorState.onInput("^")
-            "x²" -> calculatorState.onInput("^2")
-            "x³" -> calculatorState.onInput("^3")
-            "π" -> calculatorState.onInput("π")
-            "e" -> calculatorState.onInput("e")
-            "(" -> calculatorState.onInput("(")
-            ")" -> calculatorState.onInput(")")
-            "←" -> {
-                coroutineScope.launch {
-                    pagerState.animateScrollToPage(0)
+        if (isInteractive) {
+            when (input) {
+                "C" -> calculatorState.onClear()
+                "⌫" -> calculatorState.onDelete()
+                "＝" -> calculatorState.onCalculate()
+                "+", "−", "×", "÷" -> calculatorState.onOperation(input)
+                "1/x" -> calculatorState.onReciprocal()
+                "√" -> calculatorState.onInput("√(")
+                "^" -> calculatorState.onInput("^")
+                "x²" -> calculatorState.onInput("^2")
+                "x³" -> calculatorState.onInput("^3")
+                "π" -> calculatorState.onInput("π")
+                "e" -> calculatorState.onInput("e")
+                "(" -> calculatorState.onInput("(")
+                ")" -> calculatorState.onInput(")")
+                "←" -> {
+                    coroutineScope.launch {
+                        pagerState.animateScrollToPage(0)
+                    }
                 }
-            }
 
-            else -> calculatorState.onInput(input)
+                else -> calculatorState.onInput(input)
+            }
         }
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(top = 22.dp, bottom = 0.dp, start = 12.dp, end = 12.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Top
+    Box(
+        modifier = modifier.fillMaxSize()
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 30.dp)
-                .graphicsLayer {
-                    compositingStrategy = CompositingStrategy.Offscreen
-                }
-                .drawWithContent {
-                    drawContent()
-                    val fadeWidth = 16.dp.toPx()
-                    val leftFadeWidth = if (scrollState.maxValue > 0) {
-                        minOf(scrollState.value.toFloat(), fadeWidth)
-                    } else {
-                        0f
-                    }
-                    val rightFadeWidth = if (scrollState.maxValue > 0) {
-                        minOf((scrollState.maxValue - scrollState.value).toFloat(), fadeWidth)
-                    } else {
-                        0f
-                    }
-                    drawRect(
-                        brush = Brush.horizontalGradient(
-                            0f to Color.Transparent,
-                            (leftFadeWidth / size.width) to Color.Black,
-                            ((size.width - rightFadeWidth) / size.width) to Color.Black,
-                            1f to Color.Transparent
-                        ),
-                        blendMode = BlendMode.DstIn
-                    )
-                }
-        ) {
-            Row(
-                modifier = Modifier
-                    .align(Alignment.Center)
-                    .horizontalScroll(scrollState)
-            ) {
-                val displayText = calculatorState.display.ifEmpty { "0" }
-                val textColor =
-                    if (calculatorState.display.isEmpty()) Color.Gray else if (calculatorState.display == "Error") Color(
-                        0xFFFF6E6E
-                    ) else Color.White
-                Text(
-                    text = displayText,
-                    color = textColor,
-                    style = MaterialTheme.typography.display3.copy(
-                        fontFamily = RoundedFontFamily
-                    )
-                )
-            }
-        }
+        MorphingCurvedText(
+            progress = { (-dragOffsetY() / screenHeightPx).coerceIn(0f, 1f) }
+        )
 
-        Spacer(modifier = Modifier.height(4.dp))
-
-        Box(
+        Column(
             modifier = Modifier
-                .weight(1f)
                 .fillMaxSize()
+                .graphicsLayer {
+                    val offset = dragOffsetY()
+                    translationY = offset
+                    alpha = (1f - (-offset / (screenHeightPx * 0.6f))).coerceIn(0f, 1f)
+                }
+                .padding(top = 22.dp, bottom = 0.dp, start = 12.dp, end = 12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Top
         ) {
-            HorizontalPager(
-                state = pagerState,
-                modifier = Modifier.fillMaxSize()
-            ) { page ->
-                CalculatorButtons(
-                    page = page,
-                    onButtonClick = onButtonClick
-                )
-            }
-
-            val pageIndicatorState = remember(pagerState.currentPage, pagerState.pageCount) {
-                object : PageIndicatorState {
-                    override val pageCount: Int get() = pagerState.pageCount
-                    override val pageOffset: Float get() = 0f
-                    override val selectedPage: Int get() = pagerState.currentPage
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 30.dp)
+                    .graphicsLayer {
+                        compositingStrategy = CompositingStrategy.Offscreen
+                    }
+                    .drawWithContent {
+                        drawContent()
+                        val fadeWidth = 16.dp.toPx()
+                        val leftFadeWidth = if (scrollState.maxValue > 0) {
+                            minOf(scrollState.value.toFloat(), fadeWidth)
+                        } else {
+                            0f
+                        }
+                        val rightFadeWidth = if (scrollState.maxValue > 0) {
+                            minOf((scrollState.maxValue - scrollState.value).toFloat(), fadeWidth)
+                        } else {
+                            0f
+                        }
+                        drawRect(
+                            brush = Brush.horizontalGradient(
+                                0f to Color.Transparent,
+                                (leftFadeWidth / size.width) to Color.Black,
+                                ((size.width - rightFadeWidth) / size.width) to Color.Black,
+                                1f to Color.Transparent
+                            ),
+                            blendMode = BlendMode.DstIn
+                        )
+                    }
+            ) {
+                Row(
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .horizontalScroll(scrollState)
+                ) {
+                    val displayText = calculatorState.display.ifEmpty { "0" }
+                    val textColor =
+                        if (calculatorState.display.isEmpty()) Color.Gray else if (calculatorState.display == "Error") Color(
+                            0xFFFF6E6E
+                        ) else Color.White
+                    Text(
+                        text = displayText,
+                        color = textColor,
+                        style = MaterialTheme.typography.display3.copy(
+                            fontFamily = RoundedFontFamily
+                        )
+                    )
                 }
             }
 
-            HorizontalPageIndicator(
-                pageIndicatorState = pageIndicatorState,
+            Spacer(modifier = Modifier.height(4.dp))
+
+            Box(
                 modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(bottom = 2.dp)
-            )
+                    .weight(1f)
+                    .fillMaxSize()
+            ) {
+                HorizontalPager(
+                    state = pagerState,
+                    modifier = Modifier.fillMaxSize()
+                ) { page ->
+                    CalculatorButtons(
+                        page = page,
+                        onButtonClick = onButtonClick
+                    )
+                }
+
+                val pageIndicatorState = remember(pagerState.currentPage, pagerState.pageCount) {
+                    object : PageIndicatorState {
+                        override val pageCount: Int get() = pagerState.pageCount
+                        override val pageOffset: Float get() = 0f
+                        override val selectedPage: Int get() = pagerState.currentPage
+                    }
+                }
+
+                HorizontalPageIndicator(
+                    pageIndicatorState = pageIndicatorState,
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = 12.dp)
+                )
+            }
         }
     }
 }
