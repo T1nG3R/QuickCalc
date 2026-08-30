@@ -12,6 +12,7 @@ import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.wear.compose.foundation.lazy.ScalingLazyColumn
+import androidx.wear.compose.foundation.lazy.ScalingLazyListState
 import androidx.wear.compose.foundation.lazy.rememberScalingLazyListState
 import androidx.wear.compose.foundation.lazy.items
 import androidx.wear.compose.foundation.CurvedLayout
@@ -109,7 +110,7 @@ fun CalculatorApp(calculatorState: CalculatorState = remember { CalculatorState(
     }
 
     LaunchedEffect(keysVisible) {
-        if (!keysVisible && calculatorState.history.isNotEmpty()) {
+        if (!keysVisible) {
             lazyListState.scrollToItem(0)
         }
     }
@@ -189,7 +190,7 @@ fun CalculatorApp(calculatorState: CalculatorState = remember { CalculatorState(
 @Composable
 fun HistoryScreen(
     calculatorState: CalculatorState,
-    lazyListState: androidx.wear.compose.foundation.lazy.ScalingLazyListState,
+    lazyListState: ScalingLazyListState,
     onBackToCalc: () -> Unit
 ) {
     val context = LocalContext.current
@@ -218,30 +219,33 @@ fun HistoryScreen(
                 .align(Alignment.TopCenter)
                 .fillMaxWidth()
                 .height(50.dp)
+                .focusProperties { canFocus = false }
                 .clickable { onBackToCalc() }
         )
 
-        if (calculatorState.history.isEmpty()) {
-            Text(
-                text = "No history yet",
-                style = TextStyle(
-                    fontFamily = RoundedFontFamily,
-                    fontSize = 14.sp,
-                    color = Color.Gray
-                ),
-                modifier = Modifier.align(Alignment.Center)
-            )
-        } else {
-            ScalingLazyColumn(
-                state = lazyListState,
-                contentPadding = PaddingValues(top = 48.dp, bottom = 80.dp),
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 8.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(6.dp),
-                autoCentering = null
-            ) {
+        ScalingLazyColumn(
+            state = lazyListState,
+            contentPadding = PaddingValues(top = 48.dp, bottom = 80.dp),
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+            autoCentering = null
+        ) {
+            if (calculatorState.history.isEmpty()) {
+                item {
+                    Text(
+                        text = "No history yet",
+                        style = TextStyle(
+                            fontFamily = RoundedFontFamily,
+                            fontSize = 14.sp,
+                            color = Color.Gray
+                        ),
+                        modifier = Modifier.padding(top = 36.dp)
+                    )
+                }
+            } else {
                 items(calculatorState.history.asReversed()) { item ->
                     Row(
                         modifier = Modifier
@@ -271,31 +275,29 @@ fun HistoryScreen(
                         )
                     }
                 }
-                if (calculatorState.history.isNotEmpty()) {
-                    item {
-                        Button(
-                            onClick = {
-                                calculatorState.history.clear()
-                                HistoryRepository.clearHistory(context)
-                            },
-                            modifier = Modifier
-                                .padding(top = 8.dp)
-                                .fillMaxWidth(0.8f)
-                                .focusProperties { canFocus = false },
-                            colors = ButtonDefaults.buttonColors(
-                                backgroundColor = Color(0xFF2C2C2F),
-                                contentColor = Color.White
+                item {
+                    Button(
+                        onClick = {
+                            calculatorState.history.clear()
+                            HistoryRepository.clearHistory(context)
+                        },
+                        modifier = Modifier
+                            .padding(top = 8.dp)
+                            .fillMaxWidth(0.8f)
+                            .focusProperties { canFocus = false },
+                        colors = ButtonDefaults.buttonColors(
+                            backgroundColor = Color(0xFF2C2C2F),
+                            contentColor = Color.White
+                        )
+                    ) {
+                        Text(
+                            text = "Clear History",
+                            style = TextStyle(
+                                fontFamily = RoundedFontFamily,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Medium
                             )
-                        ) {
-                            Text(
-                                text = "Clear History",
-                                style = TextStyle(
-                                    fontFamily = RoundedFontFamily,
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.Medium
-                                )
-                            )
-                        }
+                        )
                     }
                 }
             }
