@@ -10,7 +10,7 @@ QuickCalc is a simple, elegant, and efficient calculator app designed specifical
 
 - **Material You Dynamic Coloring**: Integrates with WearOS 3+ system colors to dynamically match your active theme (with a beautiful fallback dark theme for older devices).
 - **Dual Layout (Standard & Scientific)**: Easily swipe between a standard calculator page and a scientific page featuring functions like `1/x`, `√`, `^`, powers, `π`, `e`, and parentheses.
-- **Rotary Scroll & Calculation History**: Scroll using the rotary crown (or swipe down) to review your calculation history and clear it with a single tap.
+- **Rotary Scroll & Calculation History**: Scroll using the rotary crown (or swipe up) to review your calculation history and clear it with a single tap.
 - **Wear OS Tile**: Quick calculation access directly from your watch's tiles.
 - **Watch Face Complications**: Launch QuickCalc directly from your watch face using either monochromatic or launcher icon complications.
 

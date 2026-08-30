@@ -8,6 +8,9 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.wear.compose.material.SwipeToDismissBox
 import androidx.compose.foundation.focusable
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
@@ -98,6 +101,7 @@ fun CalculatorApp(calculatorState: CalculatorState = remember { CalculatorState(
     val focusRequester = remember { FocusRequester() }
     val coroutineScope = rememberCoroutineScope()
     val lazyListState = rememberScalingLazyListState()
+    var verticalDragOffset by remember { mutableFloatStateOf(0f) }
 
     BackHandler(enabled = !keysVisible) {
         keysVisible = true
@@ -122,6 +126,22 @@ fun CalculatorApp(calculatorState: CalculatorState = remember { CalculatorState(
         Box(
             modifier = Modifier
                 .fillMaxSize()
+                .draggable(
+                    state = rememberDraggableState { delta ->
+                        verticalDragOffset += delta
+                    },
+                    orientation = Orientation.Vertical,
+                    enabled = keysVisible,
+                    onDragStarted = {
+                        verticalDragOffset = 0f
+                    },
+                    onDragStopped = { velocity ->
+                        if (verticalDragOffset < -50f || velocity < -300f) {
+                            keysVisible = false
+                        }
+                        verticalDragOffset = 0f
+                    }
+                )
                 .onRotaryScrollEvent { event ->
                     if (keysVisible) {
                         if (event.verticalScrollPixels > 0f) {
