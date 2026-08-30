@@ -129,7 +129,6 @@ fun CalculatorApp(calculatorState: CalculatorState = remember { CalculatorState(
     var dragOffsetY by remember { mutableFloatStateOf(0f) }
     val animOffsetY = remember { Animatable(0f) }
     var isAnimating by remember { mutableStateOf(false) }
-    val displayOffsetY = if (isAnimating) animOffsetY.value else dragOffsetY
 
     BackHandler(enabled = !keysVisible) {
         keysVisible = true
@@ -266,7 +265,7 @@ fun CalculatorApp(calculatorState: CalculatorState = remember { CalculatorState(
                     scrollState = scrollState,
                     coroutineScope = coroutineScope,
                     isInteractive = !isAnimating,
-                    dragOffsetY = { displayOffsetY },
+                    dragOffsetY = { if (isAnimating) animOffsetY.value else dragOffsetY },
                     screenHeightPx = screenHeightPx
                 )
             }
