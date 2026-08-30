@@ -125,6 +125,12 @@ fun CalculatorApp(calculatorState: CalculatorState = remember { CalculatorState(
     val screenHeightPx = remember(density, configuration) {
         with(density) { configuration.screenHeightDp.dp.toPx() }
     }
+    val dragThresholdPx = remember(density) {
+        with(density) { 48.dp.toPx() }
+    }
+    val flingVelocityThresholdPx = remember(density) {
+        with(density) { 300.dp.toPx() }
+    }
 
     var dragOffsetY by remember { mutableFloatStateOf(0f) }
     val animOffsetY = remember { Animatable(0f) }
@@ -173,7 +179,7 @@ fun CalculatorApp(calculatorState: CalculatorState = remember { CalculatorState(
                         coroutineScope.launch {
                             isAnimating = true
                             animOffsetY.snapTo(dragOffsetY)
-                            if (dragOffsetY < -50f || velocity < -300f) {
+                            if (dragOffsetY < -dragThresholdPx || velocity < -flingVelocityThresholdPx) {
                                 animOffsetY.animateTo(
                                     targetValue = -screenHeightPx,
                                     animationSpec = tween(durationMillis = 150)
