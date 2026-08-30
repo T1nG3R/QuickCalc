@@ -48,7 +48,6 @@ import androidx.wear.compose.material.HorizontalPageIndicator
 import androidx.wear.compose.material.MaterialTheme
 import androidx.wear.compose.material.PageIndicatorState
 import androidx.wear.compose.material.Text
-import androidx.compose.foundation.clickable
 import androidx.compose.ui.focus.focusProperties
 import com.alecdev.quickcalc.presentation.theme.QuickCalcTheme
 import com.alecdev.quickcalc.presentation.theme.RoundedFontFamily
@@ -169,8 +168,7 @@ fun CalculatorApp(calculatorState: CalculatorState = remember { CalculatorState(
                     } else {
                         HistoryScreen(
                             calculatorState = calculatorState,
-                            lazyListState = lazyListState,
-                            onBackToCalc = { keysVisible = true }
+                            lazyListState = lazyListState
                         )
                     }
                 }
@@ -190,8 +188,7 @@ fun CalculatorApp(calculatorState: CalculatorState = remember { CalculatorState(
 @Composable
 fun HistoryScreen(
     calculatorState: CalculatorState,
-    lazyListState: ScalingLazyListState,
-    onBackToCalc: () -> Unit
+    lazyListState: ScalingLazyListState
 ) {
     val context = LocalContext.current
 
@@ -212,16 +209,6 @@ fun HistoryScreen(
                 )
             )
         }
-
-        // touch fallback
-        Box(
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .fillMaxWidth()
-                .height(50.dp)
-                .focusProperties { canFocus = false }
-                .clickable { onBackToCalc() }
-        )
 
         ScalingLazyColumn(
             state = lazyListState,
