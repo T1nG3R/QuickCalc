@@ -1,9 +1,9 @@
 package com.alecdev.quickcalc.presentation
 
+import net.objecthunter.exp4j.ExpressionBuilder
 import java.text.DecimalFormat
 import java.text.DecimalFormatSymbols
 import java.util.Locale
-import net.objecthunter.exp4j.ExpressionBuilder
 
 object CalculatorEngine {
     private val df = DecimalFormat("#.########", DecimalFormatSymbols.getInstance(Locale.US))

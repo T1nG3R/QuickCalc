@@ -68,4 +68,4 @@ class CalculatorState {
     private fun updateDisplay() {
         display = expression
     }
-}
+}

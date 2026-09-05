@@ -47,9 +47,10 @@ class MainComplicationService : SuspendingComplicationDataSourceService() {
                     ).build(),
                     contentDescription
                 )
-                .setTapAction(pendingIntent)
-                .build()
+                    .setTapAction(pendingIntent)
+                    .build()
             }
+
             ComplicationType.SMALL_IMAGE -> {
                 SmallImageComplicationData.Builder(
                     SmallImage.Builder(
@@ -58,9 +59,10 @@ class MainComplicationService : SuspendingComplicationDataSourceService() {
                     ).build(),
                     contentDescription
                 )
-                .setTapAction(pendingIntent)
-                .build()
+                    .setTapAction(pendingIntent)
+                    .build()
             }
+
             else -> null
         }
     }

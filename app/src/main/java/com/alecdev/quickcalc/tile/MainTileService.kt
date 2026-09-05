@@ -70,9 +70,11 @@ private fun handleTileInput(context: Context, clickableId: String): String {
         "C" -> {
             expression = CalculatorEngine.applyClear()
         }
+
         "⌫" -> {
             expression = CalculatorEngine.applyDelete(expression)
         }
+
         "＝" -> {
             val cleanExpr = CalculatorEngine.trimTrailingOperators(expression)
             val (result, isSuccess) = CalculatorEngine.applyCalculate(expression)
@@ -85,12 +87,15 @@ private fun handleTileInput(context: Context, clickableId: String): String {
                 expression = "Error"
             }
         }
+
         "+", "−", "×", "÷" -> {
             expression = CalculatorEngine.applyOperation(expression, input)
         }
+
         "1/x" -> {
             expression = CalculatorEngine.applyReciprocal(expression)
         }
+
         else -> {
             expression = CalculatorEngine.applyInput(expression, input)
         }
@@ -221,14 +226,17 @@ private fun getM3TileColorsForButton(context: Context, button: String): Pair<Int
                     context.getColor(android.R.color.system_neutral2_700),
                     context.getColor(android.R.color.system_neutral2_100)
                 )
+
                 "C" -> Pair(
                     context.getColor(android.R.color.system_accent3_700),
                     context.getColor(android.R.color.system_accent3_100)
                 )
+
                 "＝", "⌫" -> Pair(
                     context.getColor(android.R.color.system_accent1_700),
                     context.getColor(android.R.color.system_accent1_100)
                 )
+
                 else -> Pair(
                     context.getColor(android.R.color.system_neutral1_800),
                     context.getColor(android.R.color.system_neutral1_100)
