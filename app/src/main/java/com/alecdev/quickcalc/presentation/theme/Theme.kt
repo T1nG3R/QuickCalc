@@ -3,6 +3,7 @@ package com.alecdev.quickcalc.presentation.theme
 import androidx.compose.runtime.Composable
 import androidx.wear.compose.material.MaterialTheme
 
+@Suppress("FunctionName")
 @Composable
 fun QuickCalcTheme(
     content: @Composable () -> Unit

@@ -211,7 +211,7 @@ private fun tileRow(
             )
         } else {
             val colors = getM3TileColorsForButton(context, button)
-            rowBuilder.addContent(tileButton(context, button, colors.first, colors.second, buttonWidth, buttonHeight))
+            rowBuilder.addContent(tileButton(button, colors.first, colors.second, buttonWidth, buttonHeight))
         }
     }
     return rowBuilder.build()
@@ -262,7 +262,6 @@ private fun getM3TileColorsForButton(context: Context, button: String): Pair<Int
 }
 
 private fun tileButton(
-    context: Context,
     text: String,
     backgroundColorArgb: Int,
     contentColorArgb: Int,

@@ -454,7 +454,6 @@ fun MorphingCurvedText(
 
         val p = progress().coerceIn(0f, 1f)
         val cx = size.width / 2f
-        val cy = size.height / 2f
         val rOuter = minOf(size.width, size.height) / 2f
         if (rOuter <= 0f) return@Canvas
 
