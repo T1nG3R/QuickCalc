@@ -13,12 +13,14 @@ import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -33,6 +35,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.runtime.Composable
@@ -50,6 +53,9 @@ import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -58,11 +64,14 @@ import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.rotary.onRotaryScrollEvent
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFontFamilyResolver
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontSynthesis
@@ -80,9 +89,7 @@ import androidx.wear.compose.foundation.lazy.items
 import androidx.wear.compose.foundation.lazy.rememberScalingLazyListState
 import androidx.wear.compose.material.Button
 import androidx.wear.compose.material.ButtonDefaults
-import androidx.wear.compose.material.HorizontalPageIndicator
 import androidx.wear.compose.material.MaterialTheme
-import androidx.wear.compose.material.PageIndicatorState
 import androidx.wear.compose.material.SwipeToDismissBox
 import androidx.wear.compose.material.Text
 import androidx.wear.compose.material.curvedText
@@ -521,9 +528,43 @@ fun MorphingCurvedText(
 
 @Suppress("FunctionName")
 @Composable
+fun TopPageIndicator(
+    pagerState: PagerState,
+    modifier: Modifier = Modifier
+) {
+    val pageCount = pagerState.pageCount
+    if (pageCount <= 1) return
+
+    val density = LocalDensity.current
+    val spacingPx = remember(density) { with(density) { 5.dp.toPx() } }
+    val dotHeightPx = remember(density) { with(density) { 5.dp.toPx() } }
+    val maxWidthPx = remember(density) { with(density) { 12.dp.toPx() } }
+    val totalWidthDp = remember(pageCount) { ((pageCount - 1) * 10 + 12).dp }
+
+    Canvas(modifier = modifier.size(width = totalWidthDp, height = 5.dp)) {
+        val rawProgress = pagerState.currentPage + pagerState.currentPageOffsetFraction
+        val progress = rawProgress.coerceIn(0f, (pageCount - 1).toFloat())
+        var currentX = 0f
+        for (i in 0 until pageCount) {
+            val distance = abs(progress - i).coerceIn(0f, 1f)
+            val dotWidth = dotHeightPx + (maxWidthPx - dotHeightPx) * (1f - distance)
+            val alpha = 0.35f + (0.65f * (1f - distance))
+            drawRoundRect(
+                color = Color.White.copy(alpha = alpha),
+                topLeft = Offset(currentX, 0f),
+                size = Size(dotWidth, dotHeightPx),
+                cornerRadius = CornerRadius(dotHeightPx / 2f, dotHeightPx / 2f)
+            )
+            currentX += dotWidth + spacingPx
+        }
+    }
+}
+
+@Suppress("FunctionName")
+@Composable
 fun CalculatorScreen(
     calculatorState: CalculatorState,
-    pagerState: androidx.compose.foundation.pager.PagerState,
+    pagerState: PagerState,
     scrollState: androidx.compose.foundation.ScrollState,
     coroutineScope: kotlinx.coroutines.CoroutineScope,
     modifier: Modifier = Modifier,
@@ -531,6 +572,8 @@ fun CalculatorScreen(
     dragOffsetY: () -> Float = { 0f },
     screenHeightPx: Float = 400f
 ) {
+    val haptic = LocalHapticFeedback.current
+
     val onButtonClick: (String) -> Unit = { input ->
         if (isInteractive) {
             when (input) {
@@ -564,6 +607,33 @@ fun CalculatorScreen(
         MorphingCurvedText(
             progress = { (-dragOffsetY() / screenHeightPx).coerceIn(0f, 1f) }
         )
+
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(top = 4.dp)
+                .graphicsLayer {
+                    val offset = dragOffsetY()
+                    translationY = offset
+                    alpha = (1f - (-offset / (screenHeightPx * 0.6f))).coerceIn(0f, 1f)
+                }
+                .clickable(
+                    enabled = isInteractive,
+                    role = Role.Button,
+                    onClickLabel = if (pagerState.currentPage == 0) "Switch to Scientific layout" else "Switch to Standard layout",
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null
+                ) {
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    coroutineScope.launch {
+                        val targetPage = if (pagerState.targetPage == 0) 1 else 0
+                        pagerState.animateScrollToPage(targetPage)
+                    }
+                }
+                .padding(horizontal = 24.dp, vertical = 8.dp)
+        ) {
+            TopPageIndicator(pagerState = pagerState)
+        }
 
         Column(
             modifier = Modifier
@@ -630,34 +700,15 @@ fun CalculatorScreen(
 
             Spacer(modifier = Modifier.height(4.dp))
 
-            Box(
+            HorizontalPager(
+                state = pagerState,
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxSize()
-            ) {
-                HorizontalPager(
-                    state = pagerState,
-                    modifier = Modifier.fillMaxSize()
-                ) { page ->
-                    CalculatorButtons(
-                        page = page,
-                        onButtonClick = onButtonClick
-                    )
-                }
-
-                val pageIndicatorState = remember(pagerState.currentPage, pagerState.pageCount) {
-                    object : PageIndicatorState {
-                        override val pageCount: Int get() = pagerState.pageCount
-                        override val pageOffset: Float get() = 0f
-                        override val selectedPage: Int get() = pagerState.currentPage
-                    }
-                }
-
-                HorizontalPageIndicator(
-                    pageIndicatorState = pageIndicatorState,
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .padding(bottom = 12.dp)
+            ) { page ->
+                CalculatorButtons(
+                    page = page,
+                    onButtonClick = onButtonClick
                 )
             }
         }
