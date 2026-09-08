@@ -76,7 +76,6 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontSynthesis
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -95,7 +94,6 @@ import androidx.wear.compose.material.Scaffold
 import androidx.wear.compose.material.SwipeToDismissBox
 import androidx.wear.compose.material.Text
 import androidx.wear.compose.material.curvedText
-import androidx.wear.tooling.preview.devices.WearDevices
 import com.alecdev.quickcalc.presentation.theme.QuickCalcTheme
 import com.alecdev.quickcalc.presentation.theme.RoundedFontFamily
 import kotlinx.coroutines.launch
@@ -853,7 +851,6 @@ fun ButtonRow(
     }
 }
 
-@Preview(device = WearDevices.SMALL_ROUND, showSystemUi = true)
 @Suppress("FunctionName")
 @Composable
 fun DefaultPreview() {
