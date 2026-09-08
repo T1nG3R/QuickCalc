@@ -590,21 +590,16 @@ fun CalculatorScreen(
                 "C" -> calculatorState.onClear()
                 "⌫" -> calculatorState.onDelete()
                 "＝" -> calculatorState.onCalculate()
-                "+", "−", "×", "÷" -> calculatorState.onOperation(input)
+                "+", "−", "×", "÷", "%" -> calculatorState.onOperation(input)
                 "1/x" -> calculatorState.onReciprocal()
                 "√" -> calculatorState.onInput("√(")
                 "^" -> calculatorState.onInput("^")
                 "x²" -> calculatorState.onInput("^2")
-                "x³" -> calculatorState.onInput("^3")
                 "π" -> calculatorState.onInput("π")
                 "e" -> calculatorState.onInput("e")
                 "(" -> calculatorState.onInput("(")
                 ")" -> calculatorState.onInput(")")
-                "←" -> {
-                    coroutineScope.launch {
-                        pagerState.animateScrollToPage(0)
-                    }
-                }
+                "!" -> calculatorState.onInput("!")
 
                 else -> calculatorState.onInput(input)
             }
@@ -732,9 +727,9 @@ fun CalculatorButtons(
     onButtonClick: (String) -> Unit
 ) {
     val row1 = if (page == 0) listOf("7", "8", "9", "÷", "C") else listOf("1/x", "√", "^", "÷", "C")
-    val row2 = if (page == 0) listOf("4", "5", "6", "×", "⌫") else listOf("x²", "x³", "π", "×", "⌫")
+    val row2 = if (page == 0) listOf("4", "5", "6", "×", "⌫") else listOf("x²", "%", "π", "×", "⌫")
     val row3 = if (page == 0) listOf("1", "2", "3", "−", "＝") else listOf("(", ")", "e", "−", "＝")
-    val row4 = if (page == 0) listOf("", "0", ".", "+", "") else listOf("", "←", ".", "+", "")
+    val row4 = if (page == 0) listOf("", "0", ".", "+", "") else listOf("", "!", ".", "+", "")
 
     Column(
         modifier = Modifier.fillMaxSize(),
@@ -755,9 +750,7 @@ data class ButtonColorScheme(
     val tertiaryContainer: Color,
     val onTertiaryContainer: Color,
     val primaryContainer: Color,
-    val onPrimaryContainer: Color,
-    val darkAccent: Color,
-    val onDarkAccent: Color
+    val onPrimaryContainer: Color
 )
 
 @Composable
@@ -774,9 +767,7 @@ fun getSystemColorScheme(): ButtonColorScheme {
                 tertiaryContainer = Color(context.getColor(android.R.color.system_accent3_700)),
                 onTertiaryContainer = Color(context.getColor(android.R.color.system_accent3_100)),
                 primaryContainer = Color(context.getColor(android.R.color.system_accent1_700)),
-                onPrimaryContainer = Color(context.getColor(android.R.color.system_accent1_100)),
-                darkAccent = Color(context.getColor(android.R.color.system_accent1_900)),
-                onDarkAccent = Color(context.getColor(android.R.color.system_accent1_200))
+                onPrimaryContainer = Color(context.getColor(android.R.color.system_accent1_100))
             )
         } else {
             ButtonColorScheme(
@@ -787,9 +778,7 @@ fun getSystemColorScheme(): ButtonColorScheme {
                 tertiaryContainer = Color(0xFF633B48),
                 onTertiaryContainer = Color(0xFFFFD8E4),
                 primaryContainer = Color(0xFF4F378B),
-                onPrimaryContainer = Color(0xFFEADDFF),
-                darkAccent = Color(0xFF1E1233),
-                onDarkAccent = Color(0xFFD0BCFF)
+                onPrimaryContainer = Color(0xFFEADDFF)
             )
         }
     }
@@ -820,18 +809,16 @@ fun ButtonRow(
                 )
             } else {
                 val backgroundColor = when (button) {
-                    in listOf("+", "−", "×", "÷") -> colorScheme.secondaryContainer
+                    "+", "−", "×", "÷" -> colorScheme.secondaryContainer
                     "C" -> colorScheme.tertiaryContainer
                     "＝", "⌫" -> colorScheme.primaryContainer
-                    "←" -> colorScheme.darkAccent
                     else -> colorScheme.surfaceVariant
                 }
 
                 val btnTextColor = when (button) {
-                    in listOf("+", "−", "×", "÷") -> colorScheme.onSecondaryContainer
+                    "+", "−", "×", "÷" -> colorScheme.onSecondaryContainer
                     "C" -> colorScheme.onTertiaryContainer
                     "＝", "⌫" -> colorScheme.onPrimaryContainer
-                    "←" -> colorScheme.onDarkAccent
                     else -> colorScheme.onSurface
                 }
 
@@ -846,29 +833,20 @@ fun ButtonRow(
                         contentColor = btnTextColor
                     )
                 ) {
-                    if (button == "←") {
-                        androidx.wear.compose.material.Icon(
-                            painter = androidx.compose.ui.res.painterResource(id = com.alecdev.quickcalc.R.drawable.ic_arrow_back),
-                            contentDescription = "Back",
-                            tint = btnTextColor,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    } else {
-                        val fontSize = when (button) {
-                            "1/x" -> 13.sp
-                            "x²", "x³" -> 16.sp
-                            in listOf("+", "−", "×", "÷", "＝", "C", "⌫", "√", "^", "(", ")") -> 20.sp
-                            else -> 18.sp
-                        }
-                        Text(
-                            text = button,
-                            style = MaterialTheme.typography.button.copy(
-                                fontFamily = RoundedFontFamily,
-                                fontSize = fontSize
-                            ),
-                            color = btnTextColor
-                        )
+                    val fontSize = when (button) {
+                        "1/x" -> 13.sp
+                        "x²" -> 16.sp
+                        "+", "−", "×", "÷", "＝", "C", "⌫", "√", "^", "(", ")", "!", "%" -> 20.sp
+                        else -> 18.sp
                     }
+                    Text(
+                        text = button,
+                        style = MaterialTheme.typography.button.copy(
+                            fontFamily = RoundedFontFamily,
+                            fontSize = fontSize
+                        ),
+                        color = btnTextColor
+                    )
                 }
             }
         }
@@ -881,4 +859,3 @@ fun ButtonRow(
 fun DefaultPreview() {
     CalculatorApp()
 }
-

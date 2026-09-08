@@ -491,4 +491,171 @@ class CalculatorStateTest {
         assertEquals("11+11", capped.first().expression)
         assertEquals("40+40", capped.last().expression)
     }
+
+    @Test
+    fun testScientificFactorialEvaluation() {
+        assertEquals("1", CalculatorEngine.evaluate("0!"))
+        assertEquals("1", CalculatorEngine.evaluate("1!"))
+        assertEquals("120", CalculatorEngine.evaluate("5!"))
+        assertEquals("120", CalculatorEngine.evaluate("(2+3)!"))
+        assertEquals("123", CalculatorEngine.evaluate("5!+3"))
+        assertEquals("12", CalculatorEngine.evaluate("2×3!"))
+        assertEquals("1", CalculatorEngine.evaluate("5!%7"))
+        assertEquals("240", CalculatorEngine.evaluate("5!2"))
+        assertEquals("240", CalculatorEngine.evaluate("5!(2)"))
+        assertEquals("-6", CalculatorEngine.evaluate("-3!"))
+
+        // Error cases
+        val (negRes, negOk) = CalculatorEngine.applyCalculate("(-3)!")
+        org.junit.Assert.assertFalse(negOk)
+        assertEquals("Error", negRes)
+
+        val (decRes, decOk) = CalculatorEngine.applyCalculate("(2.5)!")
+        org.junit.Assert.assertFalse(decOk)
+        assertEquals("Error", decRes)
+
+        val (overflowRes, overflowOk) = CalculatorEngine.applyCalculate("171!")
+        org.junit.Assert.assertFalse(overflowOk)
+        assertEquals("Error", overflowRes)
+
+        // Factorial boundary: 170! succeeds
+        val (fact170Res, fact170Ok) = CalculatorEngine.applyCalculate("170!")
+        assertTrue(fact170Ok)
+        assertTrue(fact170Res.isNotEmpty() && fact170Res != "Error")
+
+        // Factorial on constants (non-integers produce Error)
+        val (piRes, piOk) = CalculatorEngine.applyCalculate("π!")
+        org.junit.Assert.assertFalse(piOk)
+        assertEquals("Error", piRes)
+
+        val (eRes, eOk) = CalculatorEngine.applyCalculate("e!")
+        org.junit.Assert.assertFalse(eOk)
+        assertEquals("Error", eRes)
+
+        // Implicit multiplication with constants and functions
+        val piVal = CalculatorEngine.evaluate("5!π").toDouble()
+        assertTrue(piVal > 376.9 && piVal < 377.1)
+        val eVal = CalculatorEngine.evaluate("5!e").toDouble()
+        assertTrue(eVal > 326.1 && eVal < 326.3)
+        assertEquals("360", CalculatorEngine.evaluate("5!√(9)"))
+
+        // Nested factorials
+        assertEquals("720", CalculatorEngine.evaluate("(3!)!"))
+        val (nestedOverflowRes, nestedOverflowOk) = CalculatorEngine.applyCalculate("(6!)!")
+        org.junit.Assert.assertFalse(nestedOverflowOk)
+        assertEquals("Error", nestedOverflowRes)
+    }
+
+    @Test
+    fun testScientificFactorialInput() {
+        val state = CalculatorState()
+
+        // Factorial on empty expression is ignored
+        state.onInput("!")
+        assertEquals("", state.display)
+
+        // Factorial on number
+        state.onInput("5")
+        state.onInput("!")
+        assertEquals("5!", state.display)
+
+        // Duplicate factorial is ignored
+        state.onInput("!")
+        assertEquals("5!", state.display)
+
+        // Decimal after factorial inserts 0.
+        state.onInput(".")
+        assertEquals("5!0.", state.display)
+
+        // Factorial cannot follow operator or decimal
+        state.onClear()
+        state.onInput("5")
+        state.onOperation("+")
+        state.onInput("!")
+        assertEquals("5+", state.display)
+
+        state.onClear()
+        state.onInput("5")
+        state.onInput(".")
+        state.onInput("!")
+        assertEquals("5.", state.display)
+
+        // Factorial after parenthesis
+        state.onClear()
+        state.onInput("(")
+        state.onInput("2")
+        state.onOperation("+")
+        state.onInput("3")
+        state.onInput(")")
+        state.onInput("!")
+        assertEquals("(2+3)!", state.display)
+        state.onCalculate()
+        assertEquals("120", state.display)
+    }
+
+    @Test
+    fun testModuloOperator() {
+        val state = CalculatorState()
+
+        // 10 % 3 = 1
+        state.onInput("1")
+        state.onInput("0")
+        state.onOperation("%")
+        assertEquals("10%", state.display)
+        state.onInput("3")
+        assertEquals("10%3", state.display)
+        state.onCalculate()
+        assertEquals("1", state.display)
+
+        // 10 % 0 = Error
+        state.onClear()
+        state.onInput("1")
+        state.onInput("0")
+        state.onOperation("%")
+        state.onInput("0")
+        state.onCalculate()
+        assertEquals("Error", state.display)
+
+        // Operator replacement: 10+ -> replace with % -> 10%
+        state.onClear()
+        state.onInput("1")
+        state.onInput("0")
+        state.onOperation("+")
+        assertEquals("10+", state.display)
+        state.onOperation("%")
+        assertEquals("10%", state.display)
+
+        // Modulo on empty does nothing
+        state.onClear()
+        state.onOperation("%")
+        assertEquals("", state.display)
+
+        // Trailing % calculation: 10% on calculate trims to 10
+        state.onInput("1")
+        state.onInput("0")
+        state.onOperation("%")
+        state.onCalculate()
+        assertEquals("10", state.display)
+
+        // Compound modulo expressions: precedence over addition
+        assertEquals("12", CalculatorEngine.evaluate("10+6%4"))
+
+        // Modulo with negative numbers
+        assertEquals("1", CalculatorEngine.evaluate("10%(-3)"))
+
+        // Modulo with decimal numbers
+        assertEquals("1.5", CalculatorEngine.evaluate("5.5%2"))
+
+        // Decimal input after modulo: inserts 0.
+        state.onClear()
+        state.onInput("1")
+        state.onInput("0")
+        state.onOperation("%")
+        state.onInput(".")
+        state.onInput("5")
+        assertEquals("10%0.5", state.display)
+        state.onCalculate()
+        assertEquals("0", state.display)
+    }
 }
+

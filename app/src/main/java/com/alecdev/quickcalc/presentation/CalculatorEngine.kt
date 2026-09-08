@@ -1,15 +1,34 @@
 package com.alecdev.quickcalc.presentation
 
 import net.objecthunter.exp4j.ExpressionBuilder
+import net.objecthunter.exp4j.operator.Operator
 import java.text.DecimalFormat
 import java.text.DecimalFormatSymbols
 import java.util.Locale
 
 object CalculatorEngine {
     private val df = DecimalFormat("#.########", DecimalFormatSymbols.getInstance(Locale.US))
-    private val TOKEN_DELIMITERS_REGEX = Regex("[-+−×÷*/^%()√πe]")
+    private val TOKEN_DELIMITERS_REGEX = Regex("[-+−×÷*/^%()√πe!]")
     private val TRAILING_OP_REGEX = Regex("[-+−×÷*/^%√.]+$")
     private val OPERATOR_CHARS = charArrayOf('+', '-', '−', '×', '÷', '*', '/', '^', '%')
+
+    private val FACTORIAL_OPERATOR = object : Operator("!", 1, true, PRECEDENCE_POWER + 1) {
+        override fun apply(vararg args: Double): Double {
+            val arg = args[0]
+            if (arg < 0.0 || arg != Math.floor(arg)) {
+                throw IllegalArgumentException("Factorial only defined for non-negative integers")
+            }
+            if (arg > 170.0) {
+                throw ArithmeticException("Factorial overflow")
+            }
+            val n = arg.toInt()
+            var result = 1.0
+            for (i in 2..n) {
+                result *= i
+            }
+            return result
+        }
+    }
 
     fun trimTrailingOperators(expression: String): String {
         var trimmed = expression.trim()
@@ -46,6 +65,8 @@ object CalculatorEngine {
         sanitized = sanitized.replace(Regex("(\\d)\\s*(pi|e|sqrt)"), "$1*$2")
         // 4. Constant followed by digit, '(', function, or another constant -> e.g. pi2 -> pi*2, pi(2) -> pi*(2)
         sanitized = sanitized.replace(Regex("(pi|e)\\s*(\\d|\\(|sqrt|pi|e)"), "$1*$2")
+        // 5. '!' followed by digit, '(', function, or constant -> e.g. 5!2 -> 5!*2, 5!(2) -> 5!*(2)
+        sanitized = sanitized.replace(Regex("!\\s*(\\d|\\(|sqrt|pi|e)"), "!*$1")
 
         // Auto-close missing parentheses if user did not close them before calculating (e.g. √(9 -> √(9))
         val openParens = sanitized.count { it == '(' }
@@ -61,7 +82,7 @@ object CalculatorEngine {
         val sanitized = sanitize(expression)
         if (sanitized.isBlank()) return ""
 
-        val result = ExpressionBuilder(sanitized).build().evaluate()
+        val result = ExpressionBuilder(sanitized).operator(FACTORIAL_OPERATOR).build().evaluate()
         if (result.isInfinite() || result.isNaN()) {
             throw ArithmeticException("Invalid calculation result")
         }
@@ -91,6 +112,17 @@ object CalculatorEngine {
                 return baseExpr + "0."
             }
         }
+
+        if (input == "!") {
+            if (baseExpr.isEmpty()) {
+                return baseExpr
+            }
+            val last = baseExpr.last()
+            if (!last.isDigit() && last != ')' && last != 'π' && last != 'e') {
+                return baseExpr
+            }
+        }
+
         return baseExpr + input
     }
 
