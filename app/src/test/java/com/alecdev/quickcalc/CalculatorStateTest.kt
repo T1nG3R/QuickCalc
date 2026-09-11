@@ -753,5 +753,74 @@ class CalculatorStateTest {
         assertTrue(CalculatorEngine.isError("Error"))
         org.junit.Assert.assertFalse(CalculatorEngine.isError("123"))
     }
+
+    @Test
+    fun testIsResultStateTransitions() {
+        val state = CalculatorState()
+        org.junit.Assert.assertFalse(state.isResult)
+
+        state.onInput("5")
+        org.junit.Assert.assertFalse(state.isResult)
+
+        state.onOperation("+")
+        org.junit.Assert.assertFalse(state.isResult)
+
+        state.onInput("3")
+        org.junit.Assert.assertFalse(state.isResult)
+
+        state.onCalculate()
+        assertTrue(state.isResult)
+        assertEquals("8", state.display)
+
+        // Typing after calculation resets isResult
+        state.onInput("2")
+        org.junit.Assert.assertFalse(state.isResult)
+
+        // Operation after typing
+        state.onOperation("+")
+        org.junit.Assert.assertFalse(state.isResult)
+
+        state.onInput("1")
+        state.onCalculate()
+        assertTrue(state.isResult)
+
+        // Operation immediately after result resets isResult
+        state.onOperation("×")
+        org.junit.Assert.assertFalse(state.isResult)
+
+        // Error result also sets isResult to true
+        state.onClear()
+        state.onInput("1")
+        state.onInput("7")
+        state.onInput("1")
+        state.onInput("!")
+        state.onCalculate()
+        assertEquals("Value too large", state.display)
+        assertTrue(state.isResult)
+
+        // Delete resets isResult
+        state.onDelete()
+        org.junit.Assert.assertFalse(state.isResult)
+
+        // Clear resets isResult
+        state.onInput("5")
+        state.onCalculate()
+        assertTrue(state.isResult)
+        state.onClear()
+        org.junit.Assert.assertFalse(state.isResult)
+
+        // Reciprocal resets isResult
+        state.onInput("4")
+        state.onCalculate()
+        assertTrue(state.isResult)
+        state.onReciprocal()
+        org.junit.Assert.assertFalse(state.isResult)
+
+        // updateExpression resets isResult
+        state.onCalculate()
+        assertTrue(state.isResult)
+        state.updateExpression("9")
+        org.junit.Assert.assertFalse(state.isResult)
+    }
 }
 

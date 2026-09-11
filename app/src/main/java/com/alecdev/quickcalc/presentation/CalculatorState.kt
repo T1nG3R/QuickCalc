@@ -14,9 +14,12 @@ class CalculatorState {
     private var expression by mutableStateOf("")
     var display by mutableStateOf("")
     val history = mutableStateListOf<HistoryItem>()
+    var isResult by mutableStateOf(false)
+        private set
 
     fun updateExpression(expr: String) {
         expression = expr
+        isResult = false
         updateDisplay()
     }
 
@@ -27,11 +30,13 @@ class CalculatorState {
 
     fun onInput(input: String) {
         expression = CalculatorEngine.applyInput(expression, input)
+        isResult = false
         updateDisplay()
     }
 
     fun onOperation(op: String) {
         expression = CalculatorEngine.applyOperation(expression, op)
+        isResult = false
         updateDisplay()
     }
 
@@ -44,24 +49,29 @@ class CalculatorState {
             }
             display = result
             expression = result
+            isResult = true
         } else if (result.isNotEmpty()) {
             display = result
             expression = result
+            isResult = true
         }
     }
 
     fun onClear() {
         expression = CalculatorEngine.applyClear()
+        isResult = false
         updateDisplay()
     }
 
     fun onDelete() {
         expression = CalculatorEngine.applyDelete(expression)
+        isResult = false
         updateDisplay()
     }
 
     fun onReciprocal() {
         expression = CalculatorEngine.applyReciprocal(expression)
+        isResult = false
         updateDisplay()
     }
 

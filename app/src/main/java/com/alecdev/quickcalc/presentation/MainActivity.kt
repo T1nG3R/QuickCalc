@@ -184,8 +184,8 @@ fun CalculatorApp(calculatorState: CalculatorState = remember { CalculatorState(
         }
     }
 
-    LaunchedEffect(key1 = calculatorState.display) {
-        val targetScroll = if (CalculatorEngine.isError(calculatorState.display)) 0 else scrollState.maxValue
+    LaunchedEffect(key1 = calculatorState.display, key2 = calculatorState.isResult) {
+        val targetScroll = if (calculatorState.isResult) 0 else scrollState.maxValue
         scrollState.animateScrollTo(targetScroll)
     }
 
@@ -686,7 +686,7 @@ fun CalculatorScreen(
                             blendMode = BlendMode.DstIn
                         )
                     },
-                contentAlignment = Alignment.Center
+                contentAlignment = Alignment.BottomCenter
             ) {
                 val maxWidthPx = constraints.maxWidth
                 val displayText = calculatorState.display.ifEmpty { "0" }
@@ -730,7 +730,7 @@ fun CalculatorScreen(
 
                 Row(
                     modifier = Modifier
-                        .align(Alignment.Center)
+                        .align(Alignment.BottomCenter)
                         .horizontalScroll(scrollState)
                 ) {
                     Text(
