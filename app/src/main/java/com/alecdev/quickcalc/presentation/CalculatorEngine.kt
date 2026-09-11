@@ -20,7 +20,7 @@ object CalculatorEngine {
     private val FACTORIAL_OPERATOR = object : Operator("!", 1, true, PRECEDENCE_POWER + 1) {
         override fun apply(vararg args: Double): Double {
             val arg = args[0]
-            if (arg < 0.0 || arg != Math.floor(arg)) {
+            if (arg < 0.0 || arg != kotlin.math.floor(arg)) {
                 throw IllegalArgumentException("Factorial only defined for non-negative integers")
             }
             if (arg > 170.0) {
