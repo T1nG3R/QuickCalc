@@ -44,9 +44,9 @@ class CalculatorState {
             }
             display = result
             expression = result
-        } else if (result == "Error") {
-            display = "Error"
-            expression = "Error"
+        } else if (result.isNotEmpty()) {
+            display = result
+            expression = result
         }
     }
 

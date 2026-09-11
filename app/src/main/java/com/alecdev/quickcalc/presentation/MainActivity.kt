@@ -23,6 +23,7 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -49,6 +50,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
@@ -72,7 +74,9 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFontFamilyResolver
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontSynthesis
 import androidx.compose.ui.text.font.FontWeight
@@ -181,7 +185,8 @@ fun CalculatorApp(calculatorState: CalculatorState = remember { CalculatorState(
     }
 
     LaunchedEffect(key1 = calculatorState.display) {
-        scrollState.animateScrollTo(scrollState.maxValue)
+        val targetScroll = if (CalculatorEngine.isError(calculatorState.display)) 0 else scrollState.maxValue
+        scrollState.animateScrollTo(targetScroll)
     }
 
     val draggableState = rememberDraggableState { delta ->
@@ -650,7 +655,8 @@ fun CalculatorScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Top
         ) {
-            Box(
+            val textMeasurer = rememberTextMeasurer()
+            BoxWithConstraints(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 30.dp)
@@ -679,24 +685,58 @@ fun CalculatorScreen(
                             ),
                             blendMode = BlendMode.DstIn
                         )
-                    }
+                    },
+                contentAlignment = Alignment.Center
             ) {
+                val maxWidthPx = constraints.maxWidth
+                val displayText = calculatorState.display.ifEmpty { "0" }
+                val isError = CalculatorEngine.isError(calculatorState.display)
+                val textColor =
+                    if (calculatorState.display.isEmpty()) Color.Gray else if (isError) Color(
+                        0xFFFF6E6E
+                    ) else Color.White
+
+                val baseStyle = MaterialTheme.typography.display3.copy(fontFamily = RoundedFontFamily)
+                val fontSize = remember(displayText, maxWidthPx, baseStyle) {
+                    if (displayText.isEmpty() || maxWidthPx <= 0) return@remember 24.sp
+                    var low = 14
+                    var high = 24
+                    var best = 14
+                    while (low <= high) {
+                        val mid = (low + high) / 2
+                        val width = textMeasurer.measure(
+                            text = displayText,
+                            style = baseStyle.copy(fontSize = mid.sp),
+                            maxLines = 1
+                        ).size.width
+                        if (width <= maxWidthPx) {
+                            best = mid
+                            low = mid + 1
+                        } else {
+                            high = mid - 1
+                        }
+                    }
+                    best.sp
+                }
+
+                // Invisible reference: anchors Box height to standard 24sp typography height
+                Text(
+                    text = "0",
+                    style = baseStyle,
+                    modifier = Modifier
+                        .alpha(0f)
+                        .clearAndSetSemantics { }
+                )
+
                 Row(
                     modifier = Modifier
                         .align(Alignment.Center)
                         .horizontalScroll(scrollState)
                 ) {
-                    val displayText = calculatorState.display.ifEmpty { "0" }
-                    val textColor =
-                        if (calculatorState.display.isEmpty()) Color.Gray else if (calculatorState.display == "Error") Color(
-                            0xFFFF6E6E
-                        ) else Color.White
                     Text(
                         text = displayText,
                         color = textColor,
-                        style = MaterialTheme.typography.display3.copy(
-                            fontFamily = RoundedFontFamily
-                        )
+                        style = baseStyle.copy(fontSize = fontSize)
                     )
                 }
             }

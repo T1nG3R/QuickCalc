@@ -83,8 +83,8 @@ private fun handleTileInput(context: Context, clickableId: String): String {
                     HistoryRepository.addHistoryEntry(context, cleanExpr, result)
                 }
                 expression = result
-            } else if (result == "Error") {
-                expression = "Error"
+            } else if (result.isNotEmpty()) {
+                expression = result
             }
         }
 
@@ -111,7 +111,7 @@ private fun tileLayout(
     deviceParameters: DeviceParameters
 ): LayoutElementBuilders.LayoutElement {
     val displayText = expression.ifEmpty { "0" }
-    val textColor = if (expression.isEmpty()) 0xFF8E8E93.toInt() else 0xFFFFFFFF.toInt()
+    val textColor = if (expression.isEmpty()) 0xFF8E8E93.toInt() else if (CalculatorEngine.isError(expression)) 0xFFFF6E6E.toInt() else 0xFFFFFFFF.toInt()
 
     val displayFont = LayoutElementBuilders.FontStyle.Builder()
         .setSize(DimensionBuilders.sp(24f))

@@ -7,6 +7,11 @@ import java.text.DecimalFormatSymbols
 import java.util.Locale
 
 object CalculatorEngine {
+    const val ERROR_GENERIC = "Error"
+    const val ERROR_VALUE_TOO_LARGE = "Value too large"
+
+    fun isError(expr: String): Boolean = expr == ERROR_GENERIC || expr == ERROR_VALUE_TOO_LARGE
+
     private val df = DecimalFormat("#.########", DecimalFormatSymbols.getInstance(Locale.US))
     private val TOKEN_DELIMITERS_REGEX = Regex("[-+−×÷*/^%()√πe!]")
     private val TRAILING_OP_REGEX = Regex("[-+−×÷*/^%√.]+$")
@@ -102,7 +107,7 @@ object CalculatorEngine {
     }
 
     fun applyInput(currentExpr: String, input: String): String {
-        val baseExpr = if (currentExpr == "Error") "" else currentExpr
+        val baseExpr = if (isError(currentExpr)) "" else currentExpr
 
         if (input == ".") {
             if (lastNumberContainsDecimal(baseExpr)) {
@@ -127,7 +132,7 @@ object CalculatorEngine {
     }
 
     fun applyOperation(currentExpr: String, op: String): String {
-        val baseExpr = if (currentExpr == "Error") "" else currentExpr
+        val baseExpr = if (isError(currentExpr)) "" else currentExpr
         val sanitizedOp = if (op == "−") "-" else op
 
         if (baseExpr.isEmpty()) {
@@ -171,7 +176,7 @@ object CalculatorEngine {
     }
 
     fun applyDelete(currentExpr: String): String {
-        if (currentExpr == "Error" || currentExpr.isEmpty()) {
+        if (isError(currentExpr) || currentExpr.isEmpty()) {
             return ""
         }
         return currentExpr.dropLast(1)
@@ -180,7 +185,7 @@ object CalculatorEngine {
     fun applyClear(): String = ""
 
     fun applyReciprocal(currentExpr: String): String {
-        if (currentExpr == "Error" || currentExpr.isEmpty()) {
+        if (isError(currentExpr) || currentExpr.isEmpty()) {
             return "1/"
         }
         if (currentExpr == "1/") {
@@ -190,7 +195,7 @@ object CalculatorEngine {
     }
 
     fun applyCalculate(currentExpr: String): Pair<String, Boolean> {
-        if (currentExpr.isBlank() || currentExpr == "Error") {
+        if (currentExpr.isBlank() || isError(currentExpr)) {
             return Pair("", false)
         }
         return try {
@@ -201,7 +206,13 @@ object CalculatorEngine {
                 Pair(result, true)
             }
         } catch (e: Exception) {
-            Pair("Error", false)
+            val isFactorialOverflow = generateSequence(e as Throwable) { it.cause }
+                .any { it.message == "Factorial overflow" }
+            if (isFactorialOverflow) {
+                Pair(ERROR_VALUE_TOO_LARGE, false)
+            } else {
+                Pair(ERROR_GENERIC, false)
+            }
         }
     }
 }

@@ -516,7 +516,7 @@ class CalculatorStateTest {
 
         val (overflowRes, overflowOk) = CalculatorEngine.applyCalculate("171!")
         org.junit.Assert.assertFalse(overflowOk)
-        assertEquals("Error", overflowRes)
+        assertEquals("Value too large", overflowRes)
 
         // Factorial boundary: 170! succeeds
         val (fact170Res, fact170Ok) = CalculatorEngine.applyCalculate("170!")
@@ -543,7 +543,7 @@ class CalculatorStateTest {
         assertEquals("720", CalculatorEngine.evaluate("(3!)!"))
         val (nestedOverflowRes, nestedOverflowOk) = CalculatorEngine.applyCalculate("(6!)!")
         org.junit.Assert.assertFalse(nestedOverflowOk)
-        assertEquals("Error", nestedOverflowRes)
+        assertEquals("Value too large", nestedOverflowRes)
     }
 
     @Test
@@ -656,6 +656,102 @@ class CalculatorStateTest {
         assertEquals("10%0.5", state.display)
         state.onCalculate()
         assertEquals("0", state.display)
+    }
+
+    @Test
+    fun testFactorialOverflowHandling() {
+        val state = CalculatorState()
+        state.onInput("1")
+        state.onInput("7")
+        state.onInput("1")
+        state.onInput("!")
+        state.onCalculate()
+        assertEquals("Value too large", state.display)
+
+        // Typing a digit after overflow clears and replaces
+        state.onInput("9")
+        assertEquals("9", state.display)
+
+        // Trigger overflow again
+        state.onClear()
+        state.onInput("2")
+        state.onInput("0")
+        state.onInput("0")
+        state.onInput("!")
+        state.onCalculate()
+        assertEquals("Value too large", state.display)
+
+        // Backspace / Delete after overflow clears display
+        state.onDelete()
+        assertEquals("", state.display)
+
+        // Trigger overflow again
+        state.onInput("1")
+        state.onInput("7")
+        state.onInput("1")
+        state.onInput("!")
+        state.onCalculate()
+        assertEquals("Value too large", state.display)
+
+        // Reciprocal after overflow starts fresh
+        state.onReciprocal()
+        assertEquals("1/", state.display)
+
+        // Trigger overflow
+        state.onClear()
+        state.onInput("1")
+        state.onInput("7")
+        state.onInput("1")
+        state.onInput("!")
+        state.onCalculate()
+        assertEquals("Value too large", state.display)
+
+        // Dot after overflow starts fresh decimal "0."
+        state.onInput(".")
+        assertEquals("0.", state.display)
+
+        // Trigger overflow again
+        state.onClear()
+        state.onInput("1")
+        state.onInput("7")
+        state.onInput("1")
+        state.onInput("!")
+        state.onCalculate()
+        assertEquals("Value too large", state.display)
+
+        // Plus on overflow does nothing (empty base expr)
+        state.onOperation("+")
+        assertEquals("", state.display)
+
+        // Minus on overflow inserts "-" for negative number
+        state.onClear()
+        state.onInput("1")
+        state.onInput("7")
+        state.onInput("1")
+        state.onInput("!")
+        state.onCalculate()
+        state.onOperation("−")
+        assertEquals("-", state.display)
+
+        // Consecutive calculate on overflow is a no-op and does not touch history
+        state.onClear()
+        val initialHistoryCount = state.history.size
+        state.onInput("1")
+        state.onInput("7")
+        state.onInput("1")
+        state.onInput("!")
+        state.onCalculate()
+        assertEquals("Value too large", state.display)
+        assertEquals(initialHistoryCount, state.history.size)
+
+        state.onCalculate()
+        assertEquals("Value too large", state.display)
+        assertEquals(initialHistoryCount, state.history.size)
+
+        // Verify isError helper
+        assertTrue(CalculatorEngine.isError("Value too large"))
+        assertTrue(CalculatorEngine.isError("Error"))
+        org.junit.Assert.assertFalse(CalculatorEngine.isError("123"))
     }
 }
 
